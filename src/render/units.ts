@@ -13,19 +13,19 @@ class Batch {
  add(m:Matrix,c:number[]){if(this.count>=1024)return;m.copyToArray(this.matrices,this.count*16);this.colors.set(c,this.count*4);this.count++;}
  flush(){this.mesh.thinInstanceCount=this.count;this.mesh.setEnabled(this.count>0);if(this.count){this.mesh.thinInstanceBufferUpdated('matrix');this.mesh.thinInstanceBufferUpdated('instanceColor');}this.count=0;}
 }
-const TINT=[[.4,.67,.64,1],[.82,.46,.31,1]];
+const TINT=[[.38,.68,.96,1],[.92,.49,.29,1]];
 const NORMAL=[1,1,1,1],DEAD=[.42,.4,.34,1];
 export class UnitRenderer{
  readonly batches=new Map<string,Batch>();readonly rings:Mesh[]=[];private root=Matrix.Identity();private m=Matrix.Identity();private q=Quaternion.Identity();private pos=Vector3.Zero();private scale=new Vector3(1.18,1.18,1.18);private turn=Quaternion.Identity();
  private staticPalette:StandardMaterial;private lod=0;
- constructor(readonly scene:Scene){this.staticPalette=new StandardMaterial('unit vertex palette',scene);this.staticPalette.diffuseColor=Color3.White();this.staticPalette.specularColor=new Color3(.19,.18,.14);}
+ constructor(readonly scene:Scene){this.staticPalette=new StandardMaterial('unit vertex palette',scene);this.staticPalette.diffuseColor=new Color3(.72,.83,1);this.staticPalette.specularColor=new Color3(.19,.18,.14);}
  async load(){
   const loaded=await SceneLoader.ImportMeshAsync('',`${import.meta.env.BASE_URL}assets/`,'sandline-units.glb',this.scene);
   for(const node of loaded.meshes){if(!(node instanceof Mesh)||!node.getTotalVertices())continue;bakeImportedMesh(node);node.material=this.staticPalette;node.receiveShadows=false;this.batches.set(node.name,new Batch(node));}
   loaded.meshes.filter(m=>!m.getTotalVertices()).forEach(m=>m.dispose());
   for(const name of ['soldier_torso','soldier_head','soldier_upperarm','soldier_forearm','soldier_thigh','soldier_shin','weapon_rifle','weapon_mg','weapon_at','vehicle_body','vehicle_turret','vehicle_wheel'])if(!this.batches.has(name))throw new Error('Missing authored unit part: '+name);
   const blob=MeshBuilder.CreateDisc('soft-contact-shadows',{radius:.6,tessellation:12},this.scene);blob.rotation.x=Math.PI/2;blob.bakeCurrentTransformIntoVertices();const mat=new StandardMaterial('ground contact',this.scene);mat.diffuseColor=new Color3(.14,.14,.1);mat.alpha=.23;mat.disableLighting=true;mat.backFaceCulling=false;blob.material=mat;this.batches.set('shadow',new Batch(blob));
-  for(let i=0;i<12;i++){const ring=MeshBuilder.CreateTorus('squad selection',{diameter:6.9,thickness:.085,tessellation:48},this.scene);const m=new StandardMaterial('selected '+i,this.scene);m.diffuseColor=Color3.FromHexString('#70e0c9');m.emissiveColor=Color3.FromHexString('#61b6a3');m.disableLighting=true;ring.material=m;ring.isPickable=false;ring.setEnabled(false);this.rings.push(ring);}
+  for(let i=0;i<12;i++){const ring=MeshBuilder.CreateTorus('squad selection',{diameter:6.9,thickness:.085,tessellation:48},this.scene);const m=new StandardMaterial('selected '+i,this.scene);m.diffuseColor=Color3.FromHexString('#92d4ff');m.emissiveColor=Color3.FromHexString('#6ba8dc');m.disableLighting=true;ring.material=m;ring.isPickable=false;ring.setEnabled(false);this.rings.push(ring);}
  }
  private local(name:string,x:number,y:number,z:number,pitch=0,yaw=0,roll=0,color=NORMAL,scale=1){
   this.pos.set(x,y,z);Quaternion.RotationYawPitchRollToRef(yaw,pitch,roll,this.q);Matrix.ComposeToRef(new Vector3(scale,scale,scale),this.q,this.pos,this.m);this.m.multiplyToRef(this.root,this.m);(this.batches.get(this.lod?name+'_lod'+this.lod:name)||this.batches.get(name))?.add(this.m,color);

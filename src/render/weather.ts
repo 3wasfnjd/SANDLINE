@@ -23,7 +23,7 @@ export class Weather {
    this.drops.push({x:0,y:this.random()*18,z:0,seed:this.random(),speed:18+this.random()*10});
    this.lines.push([Vector3.Zero(),Vector3.Zero()]);
   }
-  this.rain=MeshBuilder.CreateLineSystem('soft rain',{lines:this.lines,updatable:true},scene);this.rain.color=Color3.FromHexString('#cae0d9');this.rain.alpha=.28;this.rain.isPickable=false;this.rain.alwaysSelectAsActiveMesh=true;
+  this.rain=MeshBuilder.CreateLineSystem('soft rain',{lines:this.lines,updatable:true},scene);this.rain.color=Color3.FromHexString('#bed7f2');this.rain.alpha=.23;this.rain.isPickable=false;this.rain.alwaysSelectAsActiveMesh=true;
   this.clouds=world.ground.clone('moving cloud shadows')!;this.clouds.position.y=.045;this.clouds.unfreezeWorldMatrix();this.clouds.isPickable=false;this.clouds.receiveShadows=false;this.clouds.metadata=null;
   this.cloudTexture=new DynamicTexture('soft cloud cover',{width:256,height:256},scene,false);const ctx=this.cloudTexture.getContext() as CanvasRenderingContext2D;
   ctx.clearRect(0,0,256,256);
@@ -47,11 +47,11 @@ export class Weather {
   }
   if(!this.software){MeshBuilder.CreateLineSystem('soft rain',{lines:this.lines,instance:this.rain},this.scene);this.rain.setEnabled(this.activeDrops>0);this.cloudTexture.uOffset=time*.0015;this.cloudTexture.vOffset=-time*.0006;this.cloudMaterial.alpha=.14+cloud*.15;}
   if(time>=this.nextLight){
-   this.nextLight=time+.25;this.world.sun.intensity=1.95-cloud*.85;this.world.sky.intensity=.83+cloud*.1;
-   this.world.groundMaterial.diffuseColor.set(1-wetness*.13,1-wetness*.10,1-wetness*.075);
-   this.world.groundMaterial.specularColor.set(.04+wetness*.12,.05+wetness*.13,.05+wetness*.13);
-   this.scene.fogDensity=.0028+rain*.0014;
-   this.world.shadows.darkness=.32+cloud*.17;
+   this.nextLight=time+.25;this.world.sun.intensity=1.3-cloud*.35;this.world.sky.intensity=.70+cloud*.08;
+   this.world.groundMaterial.diffuseColor.set(1-wetness*.08,1-wetness*.06,1-wetness*.035);
+   this.world.groundMaterial.specularColor.set(.12+wetness*.18,.18+wetness*.2,.25+wetness*.22);
+   this.scene.fogDensity=.0034+rain*.001;
+   this.world.shadows.darkness=.45+cloud*.13;
   }
  }
 }

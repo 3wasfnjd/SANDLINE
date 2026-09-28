@@ -2,25 +2,26 @@ import { Scene,Mesh,MeshBuilder,VertexData,VertexBuffer,StandardMaterial,Color3,
 import { OBSTACLES,COVERS,POINTS,BASES,heightAt } from '../core/map';
 import { randomGenerator } from '../core/types';
 import {surfaceColor} from './landscape';
+import {nightColor,NIGHT_LAMPS} from './night';
 import {bakeImportedMesh} from './imported-mesh';
 
-export const PALETTE={sand:'#ba9c71',sun:'#ffe2ac',rock:'#8d6c50',mud:'#b69470',teal:'#60c3b5',copper:'#dc7854',ink:'#14272b'};
+export const PALETTE={sand:'#394b61',sun:'#b3d6ff',rock:'#29384c',mud:'#4d596b',teal:'#75c5ff',copper:'#ed9567',ink:'#0b1422'};
 export class World {
  readonly materials=new Map<string,StandardMaterial>();readonly points:Mesh[]=[];readonly flags:Mesh[]=[];readonly shadows:ShadowGenerator;readonly sun:DirectionalLight;readonly sky:HemisphericLight;
  ground!:Mesh;groundMaterial!:StandardMaterial;private water:Mesh[]=[];
  private batches=new Map<string,Mesh[]>();private rnd=randomGenerator(537);private animatedFlags:Mesh[]=[];
  constructor(readonly scene:Scene){
-  scene.clearColor=Color4.FromHexString('#b3c7c4ff');scene.ambientColor=new Color3(.32,.37,.41);
-  scene.fogMode=Scene.FOGMODE_EXP2;scene.fogDensity=.0028;scene.fogColor=Color3.FromHexString('#b4c3ba');
-  const hemi=this.sky=new HemisphericLight('sky',new Vector3(.2,1,0),scene);hemi.intensity=.82;hemi.diffuse=Color3.FromHexString('#b6d3d9');hemi.groundColor=Color3.FromHexString('#a77852');
-  this.sun=new DirectionalLight('late desert sun',new Vector3(-.65,-1,.5),scene);this.sun.position=new Vector3(40,70,-35);this.sun.intensity=1.9;this.sun.diffuse=Color3.FromHexString('#ffe6be');this.sun.shadowMinZ=1;this.sun.shadowMaxZ=180;this.sun.autoCalcShadowZBounds=true;
+  scene.clearColor=Color4.FromHexString('#101e30ff');scene.ambientColor=new Color3(.12,.17,.25);
+  scene.fogMode=Scene.FOGMODE_EXP2;scene.fogDensity=.0028;scene.fogColor=Color3.FromHexString('#17283d');
+  const hemi=this.sky=new HemisphericLight('sky',new Vector3(.2,1,0),scene);hemi.intensity=.72;hemi.diffuse=Color3.FromHexString('#a6caff');hemi.groundColor=Color3.FromHexString('#35465c');
+  this.sun=new DirectionalLight('moonlight',new Vector3(-.65,-1,.5),scene);this.sun.position=new Vector3(40,70,-35);this.sun.intensity=1.15;this.sun.diffuse=Color3.FromHexString('#b1d1ff');this.sun.shadowMinZ=1;this.sun.shadowMaxZ=180;this.sun.autoCalcShadowZBounds=true;
   this.shadows=new ShadowGenerator(1024,this.sun);this.shadows.usePercentageCloserFiltering=true;this.shadows.filteringQuality=ShadowGenerator.QUALITY_LOW;this.shadows.bias=.001;this.shadows.normalBias=.04;this.shadows.darkness=.32;
   this.terrain();this.roads();this.cliffs();
   OBSTACLES.forEach((o,i)=>{if(o.kind==='building')this.building(o.x,o.z,o.w,o.d,o.h,i);});
   for(const c of COVERS)this.cover(c.x,c.z,c.length,c.angle,c.kind);
-  this.objectives();this.bases();this.details();this.oasis();this.finishBatches();
+  this.objectives();this.bases();this.details();this.oasis();this.nightFixtures();this.finishBatches();
  }
- mat(hex:string,emissive=false){const key=hex+(emissive?'e':'');let m=this.materials.get(key);if(m)return m;m=new StandardMaterial(key,this.scene);m.diffuseColor=Color3.FromHexString(hex);m.specularColor=new Color3(.07,.065,.05);if(emissive){m.emissiveColor=m.diffuseColor.scale(.8);m.disableLighting=true;}this.materials.set(key,m);return m;}
+ mat(hex:string,emissive=false){const key=hex+(emissive?'e':'');let m=this.materials.get(key);if(m)return m;m=new StandardMaterial(key,this.scene);m.diffuseColor=Color3.FromHexString(hex);if(!emissive&&hex!=='#ffffff'&&hex!=='#fefdfb'){const c=nightColor(m.diffuseColor.r,m.diffuseColor.g,m.diffuseColor.b);m.diffuseColor.set(...c);}m.specularColor=new Color3(.07,.065,.05);if(emissive){m.emissiveColor=m.diffuseColor.scale(.8);m.disableLighting=true;}this.materials.set(key,m);return m;}
  add(m:Mesh,hex:string,pos:Vector3,rot?:Vector3,batch=true){m.material=this.mat(hex);m.position.copyFrom(pos);if(rot)m.rotation.copyFrom(rot);m.isPickable=false;m.receiveShadows=true;if(batch){const key=hex+':'+Math.floor(pos.x/22)+':'+Math.floor(pos.z/22);const list=this.batches.get(key)||[];list.push(m);this.batches.set(key,list);}return m;}
  box(w:number,h:number,d:number,x:number,y:number,z:number,hex:string,rot?:Vector3,batch=true){return this.add(MeshBuilder.CreateBox('architecture',{width:w,height:h,depth:d},this.scene),hex,new Vector3(x,y,z),rot,batch);}
  cyl(top:number,bottom:number,h:number,x:number,y:number,z:number,hex:string,tess=12,rot?:Vector3,batch=true){return this.add(MeshBuilder.CreateCylinder('detail',{diameterTop:top,diameterBottom:bottom,height:h,tessellation:tess},this.scene),hex,new Vector3(x,y,z),rot,batch);}
@@ -31,12 +32,12 @@ export class World {
   const normals:number[]=[];VertexData.ComputeNormals(vertices,indices,normals);const v=new VertexData();v.positions=vertices;v.indices=indices;v.normals=normals;v.colors=colors;v.uvs=uv;
   const m=this.ground=new Mesh('desert-terrain',this.scene);v.applyToMesh(m);this.groundMaterial=new StandardMaterial('layered sand and soil',this.scene);this.groundMaterial.diffuseColor=Color3.White();this.groundMaterial.specularColor=new Color3(.04,.05,.05);m.material=this.groundMaterial;m.receiveShadows=true;m.isPickable=true;m.metadata={ground:true};m.freezeWorldMatrix();
   // A tiny repeating sand grain breaks up surfaces without large texture downloads.
-  const tex=new DynamicTexture('sand-grain',{width:128,height:128},this.scene,false);const ctx=tex.getContext();ctx.fillStyle='#fff8e9';ctx.fillRect(0,0,128,128);for(let i=0;i<5000;i++){const a=this.rnd()*.1;ctx.fillStyle=`rgba(81,58,32,${a})`;ctx.fillRect(this.rnd()*128,this.rnd()*128,1,1);}tex.update();tex.uScale=42;tex.vScale=42;this.groundMaterial.diffuseTexture=tex;
+  const tex=new DynamicTexture('sand-grain',{width:128,height:128},this.scene,false);const ctx=tex.getContext();ctx.fillStyle='#e0ecfa';ctx.fillRect(0,0,128,128);for(let i=0;i<5000;i++){const a=this.rnd()*.1;ctx.fillStyle=`rgba(81,58,32,${a})`;ctx.fillRect(this.rnd()*128,this.rnd()*128,1,1);}tex.update();tex.uScale=42;tex.vScale=42;this.groundMaterial.diffuseTexture=tex;
  }
  ribbon(name:string,points:{x:number;z:number}[],width:number,color:string,offset=.03){
   const p:number[]=[],idx:number[]=[],col:number[]=[];
   for(let i=0;i<points.length;i++){const a=points[Math.max(0,i-1)],b=points[Math.min(points.length-1,i+1)],len=Math.hypot(b.x-a.x,b.z-a.z)||1,nx=(b.z-a.z)/len,nz=-(b.x-a.x)/len;
-   for(const side of [-1,1]){const x=points[i].x+nx*width/2*side,z=points[i].z+nz*width/2*side;p.push(x,heightAt(x,z)+offset,z);const c=Color3.FromHexString(color);col.push(c.r,c.g,c.b,1);}if(i<points.length-1){let j=i*2;idx.push(j,j+2,j+1,j+1,j+2,j+3);}}
+   for(const side of [-1,1]){const x=points[i].x+nx*width/2*side,z=points[i].z+nz*width/2*side;p.push(x,heightAt(x,z)+offset,z);const c=Color3.FromHexString(color);col.push(...nightColor(c.r,c.g,c.b),1);}if(i<points.length-1){let j=i*2;idx.push(j,j+2,j+1,j+1,j+2,j+3);}}
   const n:number[]=[];VertexData.ComputeNormals(p,idx,n);const data=new VertexData();data.positions=p;data.indices=idx;data.normals=n;data.colors=col;const m=new Mesh(name,this.scene);data.applyToMesh(m);m.material=this.mat('#fefdfb');m.receiveShadows=true;m.isPickable=false;m.freezeWorldMatrix();return m;
  }
  path(points:number[][],width:number){const interpolated:{x:number;z:number}[]=[];for(let k=0;k<points.length-1;k++){const a=points[k],b=points[k+1],steps=Math.ceil(Math.hypot(a[0]-b[0],a[1]-b[1])/1.4);for(let j=0;j<steps;j++)interpolated.push({x:a[0]+(b[0]-a[0])*j/steps,z:a[1]+(b[1]-a[1])*j/steps});}const end=points.at(-1)!;interpolated.push({x:end[0],z:end[1]});this.ribbon('road shoulder',interpolated,width+1.2,'#ac9068',.025);this.ribbon('compacted earth',interpolated,width,'#a08965',.045);for(const side of [-1,1]){this.ribbon('old tire impressions',interpolated.map(p=>({x:p.x+side*width*.22,z:p.z})),.13,'#917b57',.065);}}
@@ -116,14 +117,14 @@ export class World {
   for(let ring=0;ring<=4;ring++)for(let i=0;i<segments;i++){
    const angle=i/segments*Math.PI*2,r=ring/4*(1+.065*Math.sin(angle*5)+.035*Math.cos(angle*3));
    const x=-42+Math.cos(angle)*4.3*r,z=-14+Math.sin(angle)*3.15*r;
-   p.push(x,heightAt(x,z)+.07,z);const t=ring/4;c.push(.2+t*.21,.4+t*.2,.41+t*.11,1);
+   p.push(x,heightAt(x,z)+.07,z);const t=ring/4;c.push(.09+t*.13,.19+t*.14,.28+t*.2,1);
    if(ring<4){const a=ring*segments+i,b=ring*segments+(i+1)%segments;idx.push(a,b,a+segments,b,b+segments,a+segments);}
   }
   const normals:number[]=[];VertexData.ComputeNormals(p,idx,normals);const data=new VertexData();data.positions=p;data.indices=idx;data.colors=c;data.normals=normals;
   const pond=new Mesh('spring water',this.scene);data.applyToMesh(pond);pond.material=this.mat('#ffffff');pond.isPickable=false;pond.freezeWorldMatrix();
-  for(let j=0;j<3;j++){const points=[];for(let i=0;i<=40;i++){const a=i/40*Math.PI*2,r=1+j*.85,x=-42+Math.cos(a)*r,z=-14+Math.sin(a)*r*.65;points.push(new Vector3(x,heightAt(x,z)+.09,z));}const ripple=MeshBuilder.CreateLines('spring ripple',{points},this.scene);ripple.color=Color3.FromHexString('#94c0ad');ripple.alpha=.24;ripple.isPickable=false;this.water.push(ripple);}
+  for(let j=0;j<3;j++){const points=[];for(let i=0;i<=40;i++){const a=i/40*Math.PI*2,r=1+j*.85,x=-42+Math.cos(a)*r,z=-14+Math.sin(a)*r*.65;points.push(new Vector3(x,heightAt(x,z)+.09,z));}const ripple=MeshBuilder.CreateLines('spring ripple',{points},this.scene);ripple.color=Color3.FromHexString('#92bedf');ripple.alpha=.24;ripple.isPickable=false;this.water.push(ripple);}
   // Small paving patches reuse Motri's actual stone atlas, not its driving map.
-  const paving=new StandardMaterial('Motri stone paving',this.scene);paving.diffuseColor=Color3.FromHexString('#cfb691');paving.specularColor=Color3.Black();
+  const paving=new StandardMaterial('Motri stone paving',this.scene);paving.diffuseColor=Color3.FromHexString('#61758d');paving.specularColor=new Color3(.12,.18,.26);
   const slabs=new Texture(`${import.meta.env.BASE_URL}assets/motri-slabs.png`,this.scene);slabs.uScale=2;slabs.vScale=1.5;paving.diffuseTexture=slabs;
   for(const [x,z,w,d] of [[-31,-3,5,4],[-32,7,4,3],[4,21,4,3]]){
    const tile=MeshBuilder.CreateGround('village paving',{width:w,height:d,subdivisions:5},this.scene);const v=tile.getVerticesData(VertexBuffer.PositionKind)!;
@@ -136,6 +137,19 @@ export class World {
    const y=heightAt(x,z);this.cyl(.18,.45,3.2,x,y+1.6,z,'#665c44',8);
    for(let i=0;i<5;i++){const a=i*2.4,m=MeshBuilder.CreateSphere('sidr canopy',{diameterX:3.1,diameterY:1.8,diameterZ:2.6,segments:7},this.scene);this.add(m,i%2?'#617643':'#7b884c',new Vector3(x+Math.cos(a)*.8,y+3.1+(i%2)*.5,z+Math.sin(a)*.7));}
   }
+ }
+ private nightFixtures(){
+  const positions:number[]=[],indices:number[]=[],colors:number[]=[];
+  for(const lamp of NIGHT_LAMPS){
+   const {x,z,radius}=lamp,y=heightAt(x,z);
+   this.box(.13,2.7,.13,x,y+1.35,z,'#566576');
+   const bulb=this.box(.48,.26,.48,x,y+2.7,z,'#ffc484',undefined,false);bulb.material=this.mat('#ffc484',true);
+   const base=positions.length/3;positions.push(x,y+.09,z);colors.push(1,.52,.18,.28);
+   for(let j=0;j<=24;j++){const a=j/24*Math.PI*2,px=x+Math.cos(a)*radius,pz=z+Math.sin(a)*radius;positions.push(px,heightAt(px,pz)+.09,pz);colors.push(1,.48,.15,0);if(j<24)indices.push(base,base+j+2,base+j+1);}
+  }
+  const data=new VertexData();data.positions=positions;data.indices=indices;data.colors=colors;const normals:number[]=[];VertexData.ComputeNormals(positions,indices,normals);data.normals=normals;
+  const pools=new Mesh('night light pools',this.scene);data.applyToMesh(pools);pools.hasVertexAlpha=true;pools.isPickable=false;
+  const mat=new StandardMaterial('soft amber ground lighting',this.scene);mat.disableLighting=true;mat.emissiveColor=Color3.White();mat.diffuseColor=Color3.White();mat.backFaceCulling=false;mat.disableDepthWrite=true;mat.transparencyMode=2;mat.alphaMode=1;pools.material=mat;pools.freezeWorldMatrix();
  }
  async loadScenery(){
   const loaded=await SceneLoader.ImportMeshAsync('',`${import.meta.env.BASE_URL}assets/`,'motri-basalt.glb',this.scene);
@@ -160,6 +174,6 @@ export class World {
  }
  private finishBatches(){for(const list of this.batches.values()){if(!list.length)continue;const merged=Mesh.MergeMeshes(list,true,true,undefined,false,false);if(merged){merged.isPickable=false;merged.receiveShadows=true;merged.freezeWorldMatrix();this.shadows.addShadowCaster(merged);}}this.batches.clear();}
  update(time:number){for(let i=0;i<this.animatedFlags.length;i++){const f=this.animatedFlags[i];f.rotation.y=Math.sin(time*2.5+i)*.075;f.scaling.x=1+Math.sin(time*3+i)*.06;}for(let i=0;i<this.water.length;i++)(this.water[i] as Mesh&{alpha:number}).alpha=.15+Math.sin(time*1.2+i*2)*.1;}
- setPoint(id:number,owner:number,progress:number,contested:boolean){const hex=contested?'#efc272':owner===0?PALETTE.teal:owner===1?PALETTE.copper:'#d4c094';this.points[id].material=this.mat(hex,true);this.flags[id].material=this.mat(owner===0?'#367f76':owner===1?'#9b4d35':'#9d9179');this.flags[id].material!.backFaceCulling=false;this.flags[id].position.y=heightAt(POINTS[id].x,POINTS[id].z)+3.3+progress*1.6;}
+ setPoint(id:number,owner:number,progress:number,contested:boolean){const hex=contested?'#efc272':owner===0?PALETTE.teal:owner===1?PALETTE.copper:'#d4c094';this.points[id].material=this.mat(hex,true);this.flags[id].material=this.mat(owner===0?'#447daf':owner===1?'#b26647':'#9d9179');this.flags[id].material!.backFaceCulling=false;this.flags[id].position.y=heightAt(POINTS[id].x,POINTS[id].z)+3.3+progress*1.6;}
  freezeShadows(){const map=this.shadows.getShadowMap();if(map)map.refreshRate=0;}
 }

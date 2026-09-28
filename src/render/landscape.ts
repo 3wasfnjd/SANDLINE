@@ -16,18 +16,15 @@ export function surfaceColor(x:number,z:number):[number,number,number]{
  const rock=Math.pow(noise(x*.13+19,z*.13-4),3)*.62;
  const vegetation=clamp((vegetationAt(x,z)-.16)*1.25,0,.8);
  const wadi=Math.exp(-((x-24-3*Math.sin(z*.1))**2)/25)*.26;
- const sandy:[number,number,number]=[mix(.74,.88,broad),mix(.51,.67,broad),mix(.31,.44,broad)];
- const stony=[.49,.46,.37],green=[.40,.47,.21];
+ const sandy:[number,number,number]=[mix(.19,.29,broad),mix(.25,.35,broad),mix(.34,.45,broad)];
+ const stony=[.15,.21,.28],green=[.16,.25,.24];
  const shade=.97+(detail-.5)*.065+waves*.012;
  return sandy.map((v,i)=>mix(mix(v,stony[i],rock+wadi),green[i],vegetation)*shade) as [number,number,number];
 }
 
 export interface WeatherState{cloud:number;rain:number;wind:number;wetness:number}
 export function weatherAt(time:number):WeatherState{
- const phase=((time%240)+240)%240;
- // One gentle shower per four-minute cycle. It is visual, never an AI rule.
- const rise=clamp((phase-8)/24,0,1),fall=clamp((116-phase)/37,0,1);
- const rain=rise*rise*(3-2*rise)*fall*fall*(3-2*fall)*.67;
- const soak=clamp((phase-8)/40,0,1),dry=clamp((190-phase)/105,0,1);
- return {cloud:.28+rain*.85, rain,wind:.28+noise(time*.012,3)*.46,wetness:.55*soak*soak*(3-2*soak)*dry*dry*(3-2*dry)};
+ // A continuous light rain with slow gusts; no gameplay visibility changes.
+ const gust=.5+.5*Math.sin(time*Math.PI/120);
+ return {cloud:.64+gust*.2,rain:.38+gust*.25,wind:.3+noise(time*.012,3)*.4,wetness:.68+gust*.12};
 }

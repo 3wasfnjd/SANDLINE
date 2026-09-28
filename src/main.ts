@@ -27,7 +27,7 @@ async function boot(){
  else engine=fallbackEngine();
  startupBackend=backend;startupStage='environment';loading.progress(25,'استطلاع ميدان المعركة…');await loading.paint();
  let qualityLevel=2;engine.setHardwareScalingLevel(1/Math.min(devicePixelRatio,1.5));
- const scene=new Scene(engine);scene.skipPointerMovePicking=true;scene.autoClear=true;scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.15;scene.imageProcessingConfiguration.contrast=1.15;
+ const scene=new Scene(engine);scene.skipPointerMovePicking=true;scene.autoClear=true;scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.05;scene.imageProcessingConfiguration.contrast=1.12;
  const camera=new ArcRotateCamera('command camera',-Math.PI/2-.16,.79,120,new Vector3(-11,1,-4),scene);camera.mode=Camera.ORTHOGRAPHIC_CAMERA;camera.minZ=.1;camera.maxZ=400;camera.inputs.clear();camera.inertia=0;
  const world=new World(scene);await world.loadScenery();loading.progress(52,'تجهيز التضاريس ومواقع السيطرة…');await loading.paint();const vegetation=new Vegetation(scene);
  if(engine instanceof CompatibilityEngine)software=new SoftwareRenderer(scene,canvas,scene.meshes.filter(m=>m instanceof Mesh) as Mesh[]);

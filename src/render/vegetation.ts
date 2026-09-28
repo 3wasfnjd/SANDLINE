@@ -1,6 +1,7 @@
 import {Scene,Mesh,VertexData,VertexBuffer,StandardMaterial,Color3} from './babylon';
 import {heightAt,blocked,POINTS,COVERS} from '../core/map';
 import {randomGenerator} from '../core/types';
+import {nightColor} from './night';
 import {vegetationAt} from './landscape';
 
 /** One shared meadow mesh, with CPU vertex sway at 15 Hz, no per-blade actors. */
@@ -26,7 +27,7 @@ export class Vegetation {
     const bend=(random()-.5)*.35,dx=Math.cos(yaw),dz=Math.sin(yaw),at=p.length/3;
     p.push(bx-dx*w,y,bz-dz*w,bx+dx*w,y,bz+dz*w,bx+bend,y+h,bz+.13);
     indices.push(at,at+1,at+2);weight.push(0,0,h);
-    for(let k=0;k<3;k++){const tip=k===2?1.18:1;c.push((green?.39:.56)*shade*tip,(green?.48:.49)*shade*tip,(green?.16:.25)*shade*tip,1);}
+    for(let k=0;k<3;k++){const tip=k===2?1.18:1;c.push(...nightColor((green?.39:.56)*shade*tip,(green?.48:.49)*shade*tip,(green?.16:.25)*shade*tip),1);}
    }
   }
   const normals:number[]=[];VertexData.ComputeNormals(p,indices,normals);
