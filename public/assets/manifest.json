@@ -1,0 +1,149 @@
+{
+  "generator": "Sandline original modular assets",
+  "meshes": [
+    {
+      "name": "soldier_torso",
+      "triangles": 352
+    },
+    {
+      "name": "soldier_head",
+      "triangles": 500
+    },
+    {
+      "name": "soldier_upperarm",
+      "triangles": 200
+    },
+    {
+      "name": "soldier_forearm",
+      "triangles": 200
+    },
+    {
+      "name": "soldier_thigh",
+      "triangles": 112
+    },
+    {
+      "name": "soldier_shin",
+      "triangles": 212
+    },
+    {
+      "name": "weapon_rifle",
+      "triangles": 92
+    },
+    {
+      "name": "weapon_mg",
+      "triangles": 152
+    },
+    {
+      "name": "weapon_at",
+      "triangles": 96
+    },
+    {
+      "name": "vehicle_body",
+      "triangles": 360
+    },
+    {
+      "name": "vehicle_turret",
+      "triangles": 136
+    },
+    {
+      "name": "vehicle_wheel",
+      "triangles": 144
+    },
+    {
+      "name": "soldier_torso_lod1",
+      "triangles": 194
+    },
+    {
+      "name": "soldier_torso_lod2",
+      "triangles": 62
+    },
+    {
+      "name": "soldier_head_lod1",
+      "triangles": 95
+    },
+    {
+      "name": "soldier_head_lod2",
+      "triangles": 40
+    },
+    {
+      "name": "soldier_upperarm_lod1",
+      "triangles": 40
+    },
+    {
+      "name": "soldier_upperarm_lod2",
+      "triangles": 24
+    },
+    {
+      "name": "soldier_forearm_lod1",
+      "triangles": 40
+    },
+    {
+      "name": "soldier_forearm_lod2",
+      "triangles": 40
+    },
+    {
+      "name": "soldier_thigh_lod1",
+      "triangles": 52
+    },
+    {
+      "name": "soldier_thigh_lod2",
+      "triangles": 28
+    },
+    {
+      "name": "soldier_shin_lod1",
+      "triangles": 34
+    },
+    {
+      "name": "soldier_shin_lod2",
+      "triangles": 28
+    },
+    {
+      "name": "weapon_rifle_lod1",
+      "triangles": 36
+    },
+    {
+      "name": "weapon_rifle_lod2",
+      "triangles": 24
+    },
+    {
+      "name": "weapon_mg_lod1",
+      "triangles": 20
+    },
+    {
+      "name": "weapon_mg_lod2",
+      "triangles": 13
+    },
+    {
+      "name": "weapon_at_lod1",
+      "triangles": 40
+    },
+    {
+      "name": "weapon_at_lod2",
+      "triangles": 16
+    },
+    {
+      "name": "vehicle_body_lod1",
+      "triangles": 200
+    },
+    {
+      "name": "vehicle_body_lod2",
+      "triangles": 98
+    },
+    {
+      "name": "vehicle_turret_lod1",
+      "triangles": 41
+    },
+    {
+      "name": "vehicle_turret_lod2",
+      "triangles": 24
+    },
+    {
+      "name": "vehicle_wheel_lod1",
+      "triangles": 92
+    },
+    {
+      "name": "vehicle_wheel_lod2",
+      "triangles": 32
+    }
+  ]
+}

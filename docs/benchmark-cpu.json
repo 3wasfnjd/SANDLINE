@@ -1,0 +1,77 @@
+{
+  "environment": "Node.js on the execution host",
+  "results": [
+    {
+      "combatants": 30,
+      "simulatedSeconds": 90,
+      "shots": 754,
+      "combatEvents": 1263,
+      "stepMs": {
+        "median": 0.063,
+        "p95": 0.203,
+        "max": 3.939
+      },
+      "note": "CPU simulation only; not a mobile GPU FPS measurement"
+    },
+    {
+      "combatants": 60,
+      "simulatedSeconds": 90,
+      "shots": 1340,
+      "combatEvents": 2199,
+      "stepMs": {
+        "median": 0.093,
+        "p95": 0.279,
+        "max": 3.239
+      },
+      "note": "CPU simulation only; not a mobile GPU FPS measurement"
+    },
+    {
+      "combatants": 100,
+      "simulatedSeconds": 90,
+      "shots": 2441,
+      "combatEvents": 3864,
+      "stepMs": {
+        "median": 0.204,
+        "p95": 0.407,
+        "max": 3.197
+      },
+      "note": "CPU simulation only; not a mobile GPU FPS measurement"
+    },
+    {
+      "combatants": 200,
+      "simulatedSeconds": 90,
+      "shots": 5226,
+      "combatEvents": 8345,
+      "stepMs": {
+        "median": 0.523,
+        "p95": 1.001,
+        "max": 2.988
+      },
+      "note": "CPU simulation only; not a mobile GPU FPS measurement"
+    },
+    {
+      "combatants": 300,
+      "simulatedSeconds": 90,
+      "shots": 7576,
+      "combatEvents": 12231,
+      "stepMs": {
+        "median": 0.942,
+        "p95": 2.308,
+        "max": 5.664
+      },
+      "note": "CPU simulation only; not a mobile GPU FPS measurement"
+    },
+    {
+      "combatants": 500,
+      "simulatedSeconds": 90,
+      "shots": 11932,
+      "combatEvents": 19443,
+      "stepMs": {
+        "median": 2.889,
+        "p95": 4.685,
+        "max": 8.924
+      },
+      "note": "CPU simulation only; not a mobile GPU FPS measurement"
+    }
+  ]
+}

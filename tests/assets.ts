@@ -1,0 +1,11 @@
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const b=readFileSync('public/assets/sandline-units.glb');
+assert.equal(b.readUInt32LE(0),0x46546c67);assert.equal(b.readUInt32LE(4),2);assert.equal(b.readUInt32LE(8),b.length);
+const gltf=JSON.parse(b.subarray(20,20+b.readUInt32LE(12)).toString());
+assert.equal(gltf.meshes.length,36);assert(gltf.meshes.every((m:{primitives:unknown[]})=>m.primitives.length===1),'Every articulated part must be one primitive for efficient instancing');
+const manifest=JSON.parse(readFileSync('public/assets/manifest.json','utf8'));assert(manifest.meshes.every((m:{triangles:number})=>m.triangles>0),'No LOD may collapse into invisible geometry');
+const count=Object.fromEntries(manifest.meshes.map((m:{name:string;triangles:number})=>[m.name,m.triangles]));
+const budgets=['','_lod1','_lod2'].map(l=>count['soldier_torso'+l]+count['soldier_head'+l]+2*['upperarm','forearm','thigh','shin'].reduce((s,p)=>s+count['soldier_'+p+l],0)+count['weapon_rifle'+l]);
+assert(budgets[0]<=2500);assert(budgets[1]<=900);assert(budgets[2]<=400);
+console.log(JSON.stringify({validGLB:true,parts:36,soldierTriangles:budgets,assetBytes:b.length},null,2));

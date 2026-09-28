@@ -1,0 +1,59 @@
+{
+  "environment": "Remote Chrome; Canvas compatibility renderer; short exploratory samples, not mobile certification",
+  "samples": [
+    {
+      "mode": "internal stress scene",
+      "renderer": "Canvas compatibility",
+      "combatants": 30,
+      "seconds": 79,
+      "shots": 654,
+      "particles": 33,
+      "fps": 55
+    },
+    {
+      "mode": "internal stress scene",
+      "renderer": "Canvas compatibility",
+      "combatants": 60,
+      "seconds": 15,
+      "shots": 144,
+      "particles": 157,
+      "fps": 42
+    },
+    {
+      "mode": "internal stress scene",
+      "renderer": "Canvas compatibility",
+      "combatants": 100,
+      "seconds": 9,
+      "shots": 45,
+      "particles": 102,
+      "fps": 45
+    },
+    {
+      "mode": "internal stress scene",
+      "renderer": "Canvas compatibility",
+      "combatants": 200,
+      "seconds": 6,
+      "shots": 6,
+      "particles": 64,
+      "fps": 15
+    },
+    {
+      "mode": "internal stress scene",
+      "renderer": "Canvas compatibility",
+      "combatants": 300,
+      "seconds": 5,
+      "shots": 68,
+      "particles": 63,
+      "fps": 4
+    },
+    {
+      "mode": "internal stress scene",
+      "renderer": "Canvas compatibility",
+      "combatants": 500,
+      "seconds": 5,
+      "shots": 1087,
+      "particles": 197,
+      "fps": 3
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+import { Scene,Vector3,Matrix } from '../render/babylon';
+import { Simulation } from '../core/simulation';
+import { ROLE,Order,Vec,clamp } from '../core/types';
+import { heightAt } from '../core/map';
+import { icon } from './icons';
+export interface UIActions{start:()=>void;restart:()=>void;pause:(value:boolean)=>void;mute:()=>boolean;select:(id:number,multi?:boolean)=>void;order:(order:Order)=>void;ability:()=>void;selectAll:()=>void;focus:(position:Vec)=>void;zoom:(delta:number)=>void}
+export class HUD{
+ root:HTMLElement;private roster!:HTMLElement;private selection!:HTMLElement;private toastEl!:HTMLElement;private markerLayer!:HTMLElement;private labelLayer!:HTMLElement;private noticeTime=0;private hintStep=0;private lastSelection='';private lastRender=0;private pauseOpen=false;private phase='';private markers:HTMLElement[]=[];private labels:HTMLButtonElement[]=[];multi=false;
+ constructor(private actions:UIActions){
+  this.root=document.getElementById('ui')!;
+  this.root.innerHTML=`
+   <div class="cinema-shade"></div>
+   <header class="brand"><span class="brand-emblem">${icon('compass')}</span><div><b>SANDLINE</b><small>FRONTLINE TACTICS</small></div></header>
+   <div class="utility"><button id="sound" class="icon-button" aria-label="تبديل الصوت">${icon(localStorage.getItem('sandline-muted')==='1'?'mute':'sound')}</button><button id="help" class="icon-button" aria-label="دليل القيادة">${icon('help')}</button><button id="pause" class="icon-button in-battle" aria-label="إيقاف مؤقت">${icon('pause')}</button></div>
+   <section class="intro" id="intro">
+    <div class="eyebrow"><span></span> وادي السدر · العملية ٠١</div>
+    <h1>خط <span>الرمل</span></h1><div class="title-rule"></div>
+    <p class="lead">اقرأ الأرض.<br>وامتلك الجبهة.</p>
+    <p class="intro-copy">قُد حرس الواحة في معركة تكتيكية قصيرة.<br>ثلاثة مواقع. قرارك يصنع الفارق.</p>
+    <button id="play" class="primary-button" disabled><span>تجهيز ساحة المعركة</span>${icon('play')}</button>
+    <div class="intro-meta"><span>لاعب ضد القائد الآلي</span><i></i><span>٧ دقائق</span><i></i><span>قيادة فرق</span></div>
+   </section>
+   <div class="intro-footer"><span>حرس الواحة <b>ضد</b> الفيلق النحاسي</span><span>01 / WADI AL-SIDR</span></div>
+   <div id="scoreboard" class="scoreboard in-battle"><div class="team-score ally"><small>حرس الواحة</small><b id="player-tickets">500</b><div class="ticket-bar"><i id="player-bar"></i></div></div><div class="score-center"><div class="objectives" id="objectives"><button data-point="0">A</button><button data-point="1">B</button><button data-point="2">C</button></div><span id="timer">07:00</span></div><div class="team-score enemy"><small>الفيلق النحاسي</small><b id="enemy-tickets">500</b><div class="ticket-bar"><i id="enemy-bar"></i></div></div></div>
+   <div id="world-markers" class="world-markers"></div><div id="unit-labels" class="unit-labels in-battle"></div>
+   <div id="toast" class="toast" role="status"></div>
+   <div class="battle-hint in-battle" id="battle-hint"><span>01</span><p>اختر فرقة، ثم المس موقعًا للسيطرة عليه.</p><button id="dismiss-hint" aria-label="إخفاء التلميح">${icon('close')}</button></div>
+   <div class="battle-bottom in-battle"><div class="roster-wrap"><div class="roster-title"><span>فرقك الميدانية</span><button id="multi-select" title="تحديد متعدد">${icon('select')}<span>متعدد</span></button></div><div id="roster" class="roster"></div></div><div id="selection" class="selection"></div></div>
+   <div class="map-tools in-battle"><button id="center" class="icon-button" aria-label="العودة إلى القاعدة">${icon('home')}</button><button id="zoom-in" class="icon-button" aria-label="تقريب">+</button><button id="zoom-out" class="icon-button" aria-label="إبعاد">−</button></div>
+   <div class="north in-battle"><span>N</span><i></i></div>
+   <section id="pause-modal" class="modal hidden"><div class="modal-card"><span class="eyebrow">الجبهة تنتظر قرارك</span><h2>هدنة قصيرة</h2><p>المعركة متوقفة مؤقتًا.</p><button id="resume" class="primary-button">متابعة المعركة ${icon('play')}</button><button id="restart-pause" class="text-button">بدء معركة جديدة</button></div></section>
+   <section id="help-modal" class="modal hidden"><div class="modal-card help-card"><button id="close-help" class="close-button" aria-label="إغلاق الدليل">${icon('close')}</button><span class="eyebrow">دليل القائد</span><h2>الأرض هي سلاحك.</h2><div class="help-rows"><div>${icon('select')}<p><b>اختر وأصدر الأمر</b><span>المس فرقة أو بطاقتها، ثم الأرض للحركة أو العدو للهجوم. استخدم «متعدد» أو Shift لاختيار أكثر من فرقة.</span></p></div><div>${icon('flag')}<p><b>سيطر على موقعين</b><span>اقترب بالمشاة من العلم. امتلاك أغلبية المواقع يستنزف رصيد الخصم. المدرعات تسند ولا تحتل.</span></p></div><div>${icon('hold')}<p><b>ثبّت، التف، وانسحب</b><span>الغطاء يحمي من جهة العدو. الرشاش يثبّته، والاقتحام يلتف عليه. الانسحاب يعيد الفرقة إلى القاعدة للتعافي.</span></p></div><div>${icon('compass')}<p><b>حرّك منظورك</b><span>اسحب لتحريك الكاميرا، وقرّب بإصبعين أو عجلة الفأرة. Space للإيقاف، R للانسحاب، F للتثبيت، A لاختيار الجميع.</span></p></div></div><p class="help-footnote">الخسائر تؤثر على الرصيد. تصل الفرقة البديلة بعد ٣٢ ثانية بكلفة ٨ نقاط. تنتهي المعركة عند نفاد الرصيد أو بعد ٧ دقائق.</p></div></section>
+   <section id="ending" class="ending hidden"><span class="eyebrow" id="end-eyebrow">انتهت العملية</span><h2 id="end-title">انتصار</h2><p id="end-copy"></p><div id="end-stats" class="end-stats"></div><button id="play-again" class="primary-button">معركة جديدة ${icon('restart')}</button></section>
+   <div id="loading" class="loading-line"><i></i></div>
+   <div id="orientation" class="orientation"><span>${icon('compass')}</span>المشهد أوسع عند تدوير الهاتف</div>`;
+  this.roster=this.root.querySelector('#roster')!;this.selection=this.root.querySelector('#selection')!;this.toastEl=this.root.querySelector('#toast')!;this.markerLayer=this.root.querySelector('#world-markers')!;this.labelLayer=this.root.querySelector('#unit-labels')!;
+  this.on('play',()=>actions.start());this.on('play-again',()=>actions.restart());this.on('sound',()=>{this.root.querySelector('#sound')!.innerHTML=icon(actions.mute()?'mute':'sound');});
+  this.on('pause',()=>this.setPause(true));this.on('resume',()=>this.setPause(false));this.on('restart-pause',()=>{this.setPause(false);actions.restart();});this.on('help',()=>this.setHelp(true));this.on('close-help',()=>this.setHelp(false));
+  this.on('center',()=>actions.focus({x:0,z:-25}));this.on('zoom-in',()=>actions.zoom(-12));this.on('zoom-out',()=>actions.zoom(12));this.on('dismiss-hint',()=>this.root.querySelector('#battle-hint')!.classList.add('dismissed'));
+  this.on('multi-select',()=>{this.multi=!this.multi;this.root.querySelector('#multi-select')!.classList.toggle('active',this.multi);});
+  this.root.querySelectorAll('[data-point]').forEach(button=>button.addEventListener('click',()=>{const id=Number((button as HTMLElement).dataset.point);this.actions.focus([{x:-26,z:-1},{x:0,z:15},{x:26,z:-2}][id]);}));
+ }
+ private on(id:string,fn:()=>void){this.root.querySelector('#'+id)!.addEventListener('click',fn);}
+ ready(){const button=this.root.querySelector('#play') as HTMLButtonElement;button.disabled=false;button.innerHTML=`<span>إلى الجبهة</span>${icon('play')}`;this.root.querySelector('#loading')!.classList.add('hidden');}
+ setPause(value:boolean){this.pauseOpen=value;this.root.querySelector('#pause-modal')!.classList.toggle('hidden',!value);this.actions.pause(value);}
+ togglePause(){this.setPause(!this.pauseOpen);}
+ setHelp(value:boolean){this.root.querySelector('#help-modal')!.classList.toggle('hidden',!value);this.actions.pause(value||this.pauseOpen);}
+ notice(message:string){this.toastEl.textContent=message;this.noticeTime=performance.now()+3700;this.toastEl.classList.add('show');}
+ setPhase(sim:Simulation){
+  if(this.phase===sim.phase)return;this.phase=sim.phase;this.root.dataset.phase=sim.phase;
+  this.root.querySelector('#intro')!.classList.toggle('hidden',sim.phase!=='intro');this.root.querySelector('.intro-footer')!.classList.toggle('hidden',sim.phase!=='intro');this.root.querySelector('#ending')!.classList.toggle('hidden',sim.phase!=='ended');
+  if(sim.phase==='playing'){this.lastSelection='';this.hintStep=0;this.root.querySelector('#battle-hint p')!.textContent='اختر فرقة، ثم المس موقعًا للسيطرة عليه.';this.root.querySelector('#battle-hint span')!.textContent='01';this.root.querySelector('#battle-hint')!.classList.remove('dismissed');this.notice('العملية بدأت · سيطر على موقعين لفتح طريق النصر');}
+  if(sim.phase==='ended'){
+   const victory=sim.winner===0,draw=sim.winner===-1;this.root.querySelector('#end-title')!.textContent=draw?'تعادل':victory?'الجبهة لنا.':'تراجعنا…';this.root.querySelector('#end-eyebrow')!.textContent=draw?'انتهت المعركة':victory?'انتصار حرس الواحة':'الفيلق النحاسي يحسم المعركة';this.root.querySelector('#end-copy')!.textContent=draw?'لم يُحسم وادي السدر هذه المرة.':victory?'ثبتت فرقك في الوادي. وأصبح الطريق آمنًا.':'الأرض تمنح فرصة أخرى. غيّر المحور، وحافظ على فرقك.';
+   this.root.querySelector('#end-stats')!.innerHTML=[['مواقع تحت السيطرة',sim.points.filter(p=>p.owner===0).length+'/3'],['خسائر الأفراد',sim.stats[0].lost],['أفراد باقون',sim.soldiers.filter(s=>s.team===0&&s.hp>0).length],['زمن المعركة',this.formatTime(sim.time)]].map(([name,value])=>`<div><b>${value}</b><span>${name}</span></div>`).join('');
+  }
+ }
+ private formatTime(time:number){return `${Math.floor(time/60).toString().padStart(2,'0')}:${Math.floor(time%60).toString().padStart(2,'0')}`;}
+ update(sim:Simulation,scene:Scene,now:number){
+  this.setPhase(sim);if(now>this.noticeTime)this.toastEl.classList.remove('show');
+  const w=window.innerWidth,h=window.innerHeight,engine=scene.getEngine(),viewport=scene.activeCamera!.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight());
+  const project=(x:number,y:number,z:number)=>{const p=Vector3.Project(new Vector3(x,y,z),Matrix.Identity(),scene.getTransformMatrix(),viewport);return{x:p.x*w/engine.getRenderWidth(),y:p.y*h/engine.getRenderHeight(),z:p.z};};
+  for(const p of sim.points){let el=this.markers[p.id];if(!el){el=document.createElement('button');el.className='point-label';el.innerHTML=`<b>${p.label}</b><span>${p.name}</span><i></i>`;el.addEventListener('click',()=>{if(sim.phase==='playing'){if(sim.selected.length){sim.issue(sim.selected,'capture',p);this.notice(`توجه إلى ${p.name}`);}else this.actions.focus(p);}});this.markerLayer.append(el);this.markers[p.id]=el;}const pos=project(p.x,heightAt(p.x,p.z)+6.4,p.z);el.style.transform=`translate(${pos.x}px,${pos.y}px) translate(-50%,-100%)`;el.classList.toggle('ally',p.owner===0);el.classList.toggle('enemy',p.owner===1);el.classList.toggle('contested',p.contested);el.style.setProperty('--capture',`${p.progress*100}%`);el.style.display=pos.z<0||pos.z>1||pos.y<20||pos.y>h-100?'none':'';}
+  for(const q of sim.squads){let el=this.labels[q.id];if(!el){el=document.createElement('button');el.className='unit-label';el.innerHTML=`${icon(ROLE[q.role].icon)}<i><b></b></i>`;el.setAttribute('aria-label',`${q.team===0?'اختيار':'مهاجمة'} ${q.name}`);el.addEventListener('click',e=>{e.stopPropagation();if(q.team===0)this.actions.select(q.id,this.multi||(e as MouseEvent).shiftKey);else if(sim.selected.length){sim.issue(sim.selected,'attack',q,q.id);this.notice('أمر اشتباك مباشر');}});this.labelLayer.append(el);this.labels[q.id]=el;}const pos=project(q.x,heightAt(q.x,q.z)+(q.role==='vehicle'?4.5:3.6),q.z);el.style.transform=`translate(${pos.x}px,${pos.y}px) translate(-50%,-100%)`;el.classList.toggle('enemy',q.team===1);el.classList.toggle('selected',sim.selected.includes(q.id));el.classList.toggle('suppressed',q.suppression>.65);el.querySelector('i b')!.setAttribute('style',`width:${this.clampPct(sim.strength(q))}%`);el.style.display=q.dead||!sim.visible(q)||pos.z<0||pos.z>1||pos.y<80||pos.y>h-130?'none':'';}
+  if(now-this.lastRender<100)return;this.lastRender=now;
+  this.root.querySelector('#player-tickets')!.textContent=Math.ceil(sim.tickets[0]).toString();this.root.querySelector('#enemy-tickets')!.textContent=Math.ceil(sim.tickets[1]).toString();(this.root.querySelector('#player-bar') as HTMLElement).style.width=this.clampPct(sim.tickets[0]/500)+'%';(this.root.querySelector('#enemy-bar') as HTMLElement).style.width=this.clampPct(sim.tickets[1]/500)+'%';this.root.querySelector('#timer')!.textContent=this.formatTime(Math.max(0,sim.duration-sim.time));
+  sim.points.forEach(p=>{const el=this.root.querySelector(`[data-point="${p.id}"]`)!;el.classList.toggle('ally',p.owner===0);el.classList.toggle('enemy',p.owner===1);el.classList.toggle('contested',p.contested);});
+  if(!this.roster.children.length){this.roster.innerHTML=sim.squads.filter(q=>q.team===0).map(q=>`<button class="unit-card" data-squad="${q.id}" aria-label="اختيار فرقة ${q.name}"><span class="unit-icon">${icon(ROLE[q.role].icon)}</span><span class="unit-card-name">${q.name}</span><small>${ROLE[q.role].short}</small><div class="unit-health"><i></i></div><b class="unit-count"></b></button>`).join('');this.roster.querySelectorAll('[data-squad]').forEach(el=>el.addEventListener('click',e=>this.actions.select(Number((el as HTMLElement).dataset.squad),this.multi||(e as MouseEvent).shiftKey)));}
+  for(const q of sim.squads.filter(q=>q.team===0)){const el=this.roster.querySelector(`[data-squad="${q.id}"]`)!;el.classList.toggle('selected',sim.selected.includes(q.id));el.classList.toggle('dead',q.dead);el.classList.toggle('retreating',q.order==='retreat');(el.querySelector('.unit-health i') as HTMLElement).style.width=this.clampPct(sim.strength(q))+'%';el.querySelector('.unit-count')!.textContent=q.dead?`${Math.max(0,Math.ceil(q.respawn-sim.time))}ث`:q.role==='vehicle'?'◈':`${sim.living(q).length}`;}
+  const selected=sim.selected.map(id=>sim.squads[id]).filter(q=>!q.dead),selectionKey=selected.map(q=>q.id).join(',');
+  if(selectionKey!==this.lastSelection){this.lastSelection=selectionKey;this.selection.innerHTML=selected.length?`<div class="selection-name"><b>${selected.length>1?selected.length+' فرق مختارة':selected[0].name+' · '+ROLE[selected[0].role].short}</b><small>${selected.length>1?'أوامرك تصل إلى كل الفرق المختارة':ROLE[selected[0].role].description}</small></div><div class="orders"><button id="hold-order" title="تثبيت الموقع (F)">${icon('hold')}<span>ثبّت</span></button><button id="retreat-order" title="انسحاب وتعافٍ (R)">${icon('retreat')}<span>انسحب</span></button><button id="rally-order" title="استعادة التماسك وزيادة إطلاق النار لخمس ثوانٍ">${icon('rally')}<span>تماسك</span><b id="ability-cooldown"></b></button></div>`:'';if(selected.length){this.on('hold-order',()=>this.actions.order('hold'));this.on('retreat-order',()=>this.actions.order('retreat'));this.on('rally-order',()=>this.actions.ability());}}
+  const cooldown=this.root.querySelector('#ability-cooldown');if(cooldown){const time=Math.ceil(Math.max(...selected.map(q=>q.ability)));cooldown.textContent=time?String(time):'';(this.root.querySelector('#rally-order') as HTMLButtonElement).disabled=time>0;}
+  if(sim.selected.length&&this.hintStep===0){this.hintStep=1;this.root.querySelector('#battle-hint p')!.textContent='المس دائرة موقع للسيطرة. اسحب الأرض لتحريك الكاميرا.';this.root.querySelector('#battle-hint span')!.textContent='02';}
+  if(sim.time>65)this.root.querySelector('#battle-hint')!.classList.add('dismissed');
+ }
+ private clampPct(v:number){return Math.round(clamp(v*100,0,100));}
+ reset(){this.phase='';this.roster.innerHTML='';this.markers.forEach(el=>el.remove());this.markers=[];this.labels.forEach(el=>el.remove());this.labels=[];this.selection.innerHTML='';this.lastSelection='none';}
+}

@@ -1,0 +1,133 @@
+{
+  "passed": true,
+  "fullMatches": [
+    {
+      "seed": 31,
+      "duration": 331,
+      "winner": 1,
+      "tickets": [
+        0,
+        386
+      ],
+      "shots": 6611,
+      "losses": [
+        99,
+        32
+      ],
+      "captures": [
+        4,
+        5
+      ],
+      "wallMs": 870,
+      "maxEventCount": 19
+    },
+    {
+      "seed": 57,
+      "duration": 275,
+      "winner": 1,
+      "tickets": [
+        0,
+        462
+      ],
+      "shots": 5648,
+      "losses": [
+        89,
+        27
+      ],
+      "captures": [
+        2,
+        6
+      ],
+      "wallMs": 792,
+      "maxEventCount": 13
+    },
+    {
+      "seed": 99,
+      "duration": 388,
+      "winner": 1,
+      "tickets": [
+        0,
+        351
+      ],
+      "shots": 8355,
+      "losses": [
+        101,
+        42
+      ],
+      "captures": [
+        3,
+        8
+      ],
+      "wallMs": 1101,
+      "maxEventCount": 14
+    }
+  ],
+  "tactical": [
+    {
+      "plan": [
+        0,
+        0,
+        2,
+        2,
+        0,
+        2
+      ],
+      "winner": 0,
+      "duration": 263,
+      "tickets": [
+        484,
+        0
+      ],
+      "stats": [
+        {
+          "lost": 16,
+          "kills": 116,
+          "captured": 2,
+          "reinforced": 0
+        },
+        {
+          "lost": 116,
+          "kills": 16,
+          "captured": 1,
+          "reinforced": 9
+        }
+      ]
+    },
+    {
+      "plan": [
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "winner": 1,
+      "duration": 372,
+      "tickets": [
+        0,
+        187
+      ],
+      "stats": [
+        {
+          "lost": 41,
+          "kills": 131,
+          "captured": 1,
+          "reinforced": 6
+        },
+        {
+          "lost": 131,
+          "kills": 41,
+          "captured": 2,
+          "reinforced": 16
+        }
+      ]
+    }
+  ],
+  "idleLoss": {
+    "time": 314,
+    "winner": 1
+  },
+  "timeLimitDraw": true,
+  "reset": true
+}
