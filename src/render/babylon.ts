@@ -27,3 +27,6 @@ import '@babylonjs/core/Engines/Extensions/engine.dynamicTexture';
 import '@babylonjs/core/Engines/Extensions/engine.alpha';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/core/Culling/ray';
+
+// DynamicTexture imports the WebGL extension only; WebGPU must register its own.
+import '@babylonjs/core/Engines/WebGPU/Extensions/engine.dynamicTexture';

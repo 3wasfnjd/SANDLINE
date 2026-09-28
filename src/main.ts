@@ -12,6 +12,8 @@ import {CompatibilityEngine,SoftwareRenderer} from './render/software';
 import {Vegetation} from './render/vegetation';
 import {Weather} from './render/weather';
 
+let startupBackend='initializing';
+let startupStage='engine';
 async function boot(){
  let canvas=document.querySelector('#battlefield') as HTMLCanvasElement;canvas.setAttribute('aria-label','ساحة معركة خط الرمل');
  canvas.addEventListener('webglcontextcreationerror',event=>console.warn('Graphics context unavailable:',(event as WebGLContextEvent).statusMessage));
@@ -19,8 +21,9 @@ async function boot(){
  const fallbackEngine=()=>{try{return new Engine(canvas,true,{stencil:true,preserveDrawingBuffer:false,powerPreference:'default',failIfMajorPerformanceCaveat:false},false);}catch{backend='Canvas compatibility';return new CompatibilityEngine();}};
  // WebGL2 remains the mobile baseline. Desktop WebGPU is feature detected and
  // an initialization failure immediately falls back to the mature WebGL renderer.
- if(!matchMedia('(pointer:coarse)').matches&&await WebGPUEngine.IsSupportedAsync){try{const gpu=new WebGPUEngine(canvas,{antialias:true,adaptToDeviceRatio:false});await gpu.initAsync();engine=gpu;backend='WebGPU';}catch(error){console.warn('WebGPU initialization unavailable; using WebGL2',error);const fallback=canvas.cloneNode(false) as HTMLCanvasElement;canvas.replaceWith(fallback);canvas=fallback;engine=fallbackEngine();}}
+ if(new URLSearchParams(location.search).get('renderer')!=='webgl'&&!matchMedia('(pointer:coarse)').matches&&await WebGPUEngine.IsSupportedAsync.catch(()=>false)){try{const gpu=new WebGPUEngine(canvas,{antialias:true,adaptToDeviceRatio:false});await gpu.initAsync();engine=gpu;backend='WebGPU';}catch(error){console.warn('WebGPU initialization unavailable; using WebGL2',error);const fallback=canvas.cloneNode(false) as HTMLCanvasElement;canvas.replaceWith(fallback);canvas=fallback;engine=fallbackEngine();}}
  else engine=fallbackEngine();
+ startupBackend=backend;startupStage='environment';
  let qualityLevel=2;engine.setHardwareScalingLevel(1/Math.min(devicePixelRatio,1.5));
  const scene=new Scene(engine);scene.skipPointerMovePicking=true;scene.autoClear=true;scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.15;scene.imageProcessingConfiguration.contrast=1.15;
  const camera=new ArcRotateCamera('command camera',-Math.PI/2-.16,.79,120,new Vector3(-11,1,-4),scene);camera.mode=Camera.ORTHOGRAPHIC_CAMERA;camera.minZ=.1;camera.maxZ=400;camera.inputs.clear();camera.inertia=0;
@@ -38,8 +41,8 @@ async function boot(){
  input=new BattlefieldInput(canvas,scene,camera,()=>sim,select,ordered,()=>hud.multi,()=>hud.togglePause(),()=>paused||!ready);input.center={x:-12,z:-3};input.span=input.desiredSpan=103;
  // The opening shot uses the actual battlefield and the same unit renderer.
  for(const q of sim.squads){const positions=[[-26,0],[-10,-10],[-2,-10],[6,-9],[-17,-16],[0,-17]],p=q.team===0?positions[q.id]:[q.x,q.z-7];q.x=p[0];q.z=p[1];for(const id of q.members){const s=sim.soldiers[id];s.x=q.x+(s.slot%3-1)*1.3;s.z=q.z-Math.floor(s.slot/3)*1.4;}}
- await units.load();if(!software)await scene.whenReadyAsync();
- ready=true;hud.ready();hud.setPhase(sim);input.update(1);if(!software)units.update(sim,0);scene.render();world.freezeShadows();
+ startupStage='units';await units.load();startupStage='shaders';if(!software)await scene.whenReadyAsync();
+ startupStage='first-frame';ready=true;hud.ready();hud.setPhase(sim);input.update(1);if(!software)units.update(sim,0);scene.render();world.freezeShadows();
  const requestedStress=import.meta.env.DEV?Number(new URLSearchParams(location.search).get('stress')):0;
  const stress=import.meta.env.DEV&&[30,60,100,200,300,500].includes(requestedStress)?requestedStress:0;
  let stressOutput:HTMLElement|undefined,lastStressBurst=0;
@@ -80,4 +83,21 @@ function registerTools(getSim:()=>Simulation,a:ToolsActions){
  ];
  for(const tool of definitions)try{void Promise.resolve(context.registerTool({...tool,annotations:{readOnlyHint:false,untrustedContentHint:false,...tool.annotations}},{signal:lifecycle.signal})).catch(e=>console.warn('Optional tool registration unavailable',e));}catch(e){console.warn('Optional tool registration unavailable',e);}
 }
-boot().catch(error=>{console.error('Game initialization failed',error);document.querySelector('#ui')!.innerHTML='<div class="error-screen"><h1>خط الرمل</h1><p>تعذّر فتح ساحة المعركة. تأكد من تفعيل تسريع الرسوم واستخدام إصدار حديث من Safari أو Chrome، ثم أعد المحاولة.</p><button class="primary-button" onclick="location.reload()">إعادة المحاولة</button></div>';});
+boot().catch(error=>{
+ console.error('Game initialization failed',startupBackend,startupStage,error);
+ // Retry the complete startup in a fresh document: no stale GPU context, scene,
+ // input listeners or UI from the failed attempt can survive into WebGL.
+ if(startupBackend==='WebGPU'){
+  const retry=new URL(location.href);retry.searchParams.set('renderer','webgl');
+  location.replace(retry.href);return;
+ }
+ const box=document.createElement('div');box.className='error-screen';
+ const title=document.createElement('h1');title.textContent='خط الرمل';
+ const message=document.createElement('p');message.textContent='تعذّر إكمال تحميل ساحة المعركة. أعد المحاولة، وإذا استمرت المشكلة أرسل لنا تفاصيل الخطأ أدناه.';
+ const details=document.createElement('details'),label=document.createElement('summary'),detail=document.createElement('pre');
+ label.textContent='تفاصيل الخطأ';detail.style.cssText='direction:ltr;white-space:pre-wrap;font-size:12px;max-width:85vw;overflow-wrap:anywhere';
+ detail.textContent=`${startupBackend} / ${startupStage}\n${error instanceof Error?error.message:String(error)}`;
+ details.append(label,detail);
+ const retry=document.createElement('button');retry.className='primary-button';retry.textContent='إعادة المحاولة';retry.onclick=()=>location.reload();
+ box.append(title,message,details,retry);document.querySelector('#ui')!.replaceChildren(box);
+});

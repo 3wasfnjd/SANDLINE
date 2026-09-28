@@ -54,3 +54,11 @@ A short development stress scene with 60 combatants was observed during rain at 
 The new `tests/imported-geometry.ts` exercises the actual Babylon glTF importer for all 39 unit and scenery meshes. It verifies finite positions/normals and front-face winding after transform baking. This caught and corrected both the imported-mesh orientation mismatch and an undefined vehicle rotation default in the asset generator. Asset checks and the TypeScript build pass. The continuous weather function was sampled every 0.1 second across three full cycles to check bounds and transition continuity. Shared simulation and navigation files were not changed.
 
 New reference captures: `qa/motri-environment.jpg` and `qa/motri-portrait.jpg`. They show the compatibility renderer. The GPU effects and real-device limitations above still apply.
+
+## WebGPU startup correction
+
+A user screenshot exposed the generic boot-error screen on desktop Chrome. Code inspection and a direct import of the game’s pruned Babylon entrypoint reproduced missing `createDynamicTexture` and `updateDynamicTexture` functions on `WebGPUEngine.prototype`; both functions existed on the WebGL engine. `DynamicTexture` imports only its WebGL extension, so the dedicated WebGPU extension is now explicitly registered.
+
+`tests/renderer-registration.ts` checks both backend prototypes and is required by the Pages build. It passes after the fix. A WebGPU scene-initialization exception now retries a clean document with WebGL, rather than leaving partially initialized listeners and GPU resources. If startup still fails, the error screen reports the actual backend, stage and error message instead of assuming the user disabled graphics acceleration.
+
+This diagnoses a concrete code defect, but the screenshot alone cannot prove it was the only issue on the user's machine. No physical Windows/iPhone/Android or GPU hardware certification is claimed.
