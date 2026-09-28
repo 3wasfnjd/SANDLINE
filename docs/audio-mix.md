@@ -5,3 +5,5 @@ An original synthesized 20-second / 8-bar score replaces the previous sparse ton
 Weapon gain: rifles .11 -> .20, heavy weapons .25 -> .46, vehicle destruction .45 -> .65, before existing distance attenuation. Rain gain: .075 -> .022 (71% lower). Music gain ducks from .23 to .14 for active fire. A master compressor controls coincident peaks; existing 14 combat-voice limit remains.
 
 Validation: TypeScript/Vite build; finite score samples, duration, peak and RMS checks. These are technical checks, not a listening test or physical-device audio validation.
+
+Follow-up after player feedback: rain gain reduced from .022 to .003 (86% lower again); wind reduced from .018 + wind*.035 to .002 + wind*.004, including its startup gain (.026 -> .003). Weapon and music levels unchanged. Production build verified; listening balance still requires device feedback.
