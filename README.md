@@ -78,4 +78,4 @@ Actual iPhone Safari and Android hardware performance has not been certified in 
 
 ## GitHub Pages
 
-Play at https://3wasfnjd.github.io/SANDLINE/. The Pages workflow builds the TypeScript source with Vite and deploys only `dist/`. It selects the Actions build source to avoid publishing uncompiled TypeScript through Jekyll. All model and texture URLs use Vite's relative base, so the same build supports both `/SANDLINE/` and a root domain. A green legacy “pages build and deployment” run alone does not validate the game build.
+Play at https://3wasfnjd.github.io/SANDLINE/. The Pages workflow builds the TypeScript source with Vite and deploys only `dist/`. On existing branch-based Pages sites it waits for the legacy Jekyll publication to finish, then publishes the compiled game. With Pages configured to use GitHub Actions, it deploys directly. No repository-administration token is needed. All model and texture URLs use Vite's relative base, so the same build supports both `/SANDLINE/` and a root domain. A green legacy “pages build and deployment” run alone does not validate the game build.
