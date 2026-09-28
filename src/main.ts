@@ -1,4 +1,5 @@
 import './style.css';
+import {loading} from './ui/loading';
 import {Engine,WebGPUEngine,Scene,ArcRotateCamera,Camera,Vector3,ImageProcessingConfiguration,AbstractEngine,Mesh} from './render/babylon';
 import {Simulation} from './core/simulation';
 import {Order,Vec} from './core/types';
@@ -15,6 +16,7 @@ import {Weather} from './render/weather';
 let startupBackend='initializing';
 let startupStage='engine';
 async function boot(){
+ loading.progress(8,'فتح قناة القيادة…');await loading.paint();
  let canvas=document.querySelector('#battlefield') as HTMLCanvasElement;canvas.setAttribute('aria-label','ساحة معركة خط الرمل');
  canvas.addEventListener('webglcontextcreationerror',event=>console.warn('Graphics context unavailable:',(event as WebGLContextEvent).statusMessage));
  let engine:AbstractEngine;let backend='WebGL2';let software:SoftwareRenderer|undefined;
@@ -23,36 +25,36 @@ async function boot(){
  // an initialization failure immediately falls back to the mature WebGL renderer.
  if(new URLSearchParams(location.search).get('renderer')!=='webgl'&&!matchMedia('(pointer:coarse)').matches&&await WebGPUEngine.IsSupportedAsync.catch(()=>false)){try{const gpu=new WebGPUEngine(canvas,{antialias:true,adaptToDeviceRatio:false});await gpu.initAsync();engine=gpu;backend='WebGPU';}catch(error){console.warn('WebGPU initialization unavailable; using WebGL2',error);const fallback=canvas.cloneNode(false) as HTMLCanvasElement;canvas.replaceWith(fallback);canvas=fallback;engine=fallbackEngine();}}
  else engine=fallbackEngine();
- startupBackend=backend;startupStage='environment';
+ startupBackend=backend;startupStage='environment';loading.progress(25,'استطلاع ميدان المعركة…');await loading.paint();
  let qualityLevel=2;engine.setHardwareScalingLevel(1/Math.min(devicePixelRatio,1.5));
  const scene=new Scene(engine);scene.skipPointerMovePicking=true;scene.autoClear=true;scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.15;scene.imageProcessingConfiguration.contrast=1.15;
  const camera=new ArcRotateCamera('command camera',-Math.PI/2-.16,.79,120,new Vector3(-11,1,-4),scene);camera.mode=Camera.ORTHOGRAPHIC_CAMERA;camera.minZ=.1;camera.maxZ=400;camera.inputs.clear();camera.inertia=0;
- const world=new World(scene);await world.loadScenery();const vegetation=new Vegetation(scene);
+ const world=new World(scene);await world.loadScenery();loading.progress(52,'تجهيز التضاريس ومواقع السيطرة…');await loading.paint();const vegetation=new Vegetation(scene);
  if(engine instanceof CompatibilityEngine)software=new SoftwareRenderer(scene,canvas,scene.meshes.filter(m=>m instanceof Mesh) as Mesh[]);
  const weather=new Weather(scene,world,Boolean(software));
  const units=new UnitRenderer(scene),effects=new Effects(scene),audio=new AudioSystem();let sim=new Simulation(),paused=false,ready=false,elapsed=0,environmentTime=0,accumulator=0,last=performance.now(),qualityTimer=0,frameSamples:number[]=[],renderSamples:number[]=[],lastUI=0;
  let hud:HUD,input:BattlefieldInput;
  function select(id:number,multi=false){const q=sim.squads[id];if(!q||q.team!==0||q.dead||sim.phase!=='playing')return;if(multi){sim.selected=sim.selected.includes(id)?sim.selected.filter(i=>i!==id):[...sim.selected,id];}else sim.selected=[id];audio.radio();}
  function ordered(p:Vec,kind:string){effects.order(p.x,p.z);audio.radio();if(kind==='retreat')hud.notice('انسحاب إلى القاعدة · التعافي ثم العودة إلى الجبهة');else if(kind==='move')hud.notice('تحرّك إلى الموضع المحدد');else if(kind==='attack')hud.notice('أمر اشتباك مباشر');}
- function start(){if(!ready)return;sim=new Simulation(Math.floor(Math.random()*100000));sim.start();paused=false;accumulator=0;effects.particles=[];effects.tracers=[];input.center={x:0,z:window.innerHeight<500&&window.innerWidth>window.innerHeight?-19:-11};input.desiredSpan=116;hud.reset();hud.setPhase(sim);void audio.start();}
+ function start(){if(!ready)return;loading.dismiss();sim=new Simulation(Math.floor(Math.random()*100000));sim.start();paused=false;accumulator=0;effects.particles=[];effects.tracers=[];input.center={x:0,z:window.innerHeight<500&&window.innerWidth>window.innerHeight?-19:-11};input.desiredSpan=116;hud.reset();hud.setPhase(sim);void audio.start();}
  function restart(){start();}
  function pause(value:boolean){paused=value;audio.pause(value);accumulator=0;}
  hud=new HUD({start,restart,pause,mute:()=>audio.toggle(),select,order:(order)=>{sim.issue(sim.selected,order);ordered({x:0,z:order==='retreat'?-35:0},order);},ability:()=>{sim.ability(sim.selected);hud.notice('تماسك · استعادة المعنويات وإسناد ناري مكثف');audio.radio();},selectAll:()=>{sim.selected=sim.squads.filter(q=>q.team===0&&!q.dead).map(q=>q.id);},focus:p=>input.focus(p),zoom:d=>input.zoom(d)});
  input=new BattlefieldInput(canvas,scene,camera,()=>sim,select,ordered,()=>hud.multi,()=>hud.togglePause(),()=>paused||!ready);input.center={x:-12,z:-3};input.span=input.desiredSpan=103;
  // The opening shot uses the actual battlefield and the same unit renderer.
  for(const q of sim.squads){const positions=[[-26,0],[-10,-10],[-2,-10],[6,-9],[-17,-16],[0,-17]],p=q.team===0?positions[q.id]:[q.x,q.z-7];q.x=p[0];q.z=p[1];for(const id of q.members){const s=sim.soldiers[id];s.x=q.x+(s.slot%3-1)*1.3;s.z=q.z-Math.floor(s.slot/3)*1.4;}}
- startupStage='units';await units.load();startupStage='shaders';if(!software)await scene.whenReadyAsync();
- startupStage='first-frame';ready=true;hud.ready();hud.setPhase(sim);input.update(1);if(!software)units.update(sim,0);scene.render();world.freezeShadows();
+ startupStage='units';loading.progress(66,'وصول الفرق والمدرعات…');await units.load();loading.progress(86,'تجهيز الإضاءة والمؤثرات…');await loading.paint();startupStage='shaders';if(!software)await scene.whenReadyAsync();
+ startupStage='first-frame';ready=true;hud.ready();hud.setPhase(sim);input.update(1);if(!software)units.update(sim,0);scene.render();world.freezeShadows();loading.ready(start);
  const requestedStress=import.meta.env.DEV?Number(new URLSearchParams(location.search).get('stress')):0;
  const stress=import.meta.env.DEV&&[30,60,100,200,300,500].includes(requestedStress)?requestedStress:0;
  let stressOutput:HTMLElement|undefined,lastStressBurst=0;
- if(import.meta.env.DEV&&stress){sim=new Simulation(813,stress);sim.aiPlayer=true;sim.start();sim.duration=120;input.center={x:0,z:0};input.span=input.desiredSpan=122;hud.root.style.display='none';stressOutput=document.createElement('output');stressOutput.setAttribute('aria-label','Stress scene results');stressOutput.style.cssText='position:fixed;bottom:12px;left:12px;background:#142c2eea;color:#e8e5cb;padding:14px;font:12px monospace;white-space:pre;direction:ltr;z-index:100;pointer-events:none';document.body.append(stressOutput);}
+ if(import.meta.env.DEV&&stress){loading.dismiss();sim=new Simulation(813,stress);sim.aiPlayer=true;sim.start();sim.duration=120;input.center={x:0,z:0};input.span=input.desiredSpan=122;hud.root.style.display='none';stressOutput=document.createElement('output');stressOutput.setAttribute('aria-label','Stress scene results');stressOutput.style.cssText='position:fixed;bottom:12px;left:12px;background:#142c2eea;color:#e8e5cb;padding:14px;font:12px monospace;white-space:pre;direction:ltr;z-index:100;pointer-events:none';document.body.append(stressOutput);}
  function applyQuality(){const scale=[.75,1,Math.min(devicePixelRatio,1.5)][qualityLevel];engine.setHardwareScalingLevel(1/scale);effects.quality=[.5,.75,1][qualityLevel];weather.setQuality([.4,.7,1][qualityLevel]);if(qualityLevel===0){world.shadows.getShadowMap()!.resize(512);world.freezeShadows();}engine.resize();}
  const finishFrame=()=>new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
  registerTools(()=>sim,{start,restart,pause,ready:()=>ready,after:finishFrame,orders:(ids,order,p,target)=>{sim.selected=ids;sim.issue(ids,order,p,target);if(p)ordered(p,order);},performance:()=>({backend,quality:['low','medium','high'][qualityLevel],fps:Math.round(1000/(renderSamples.reduce((n,a)=>n+a,0)/Math.max(1,renderSamples.length))),visibleIndividuals:sim.soldiers.filter(s=>s.hp>0&&sim.visible(sim.squads[s.squad])).length})});
  engine.runRenderLoop(()=>{
   const now=performance.now(),raw=(now-last)/1000;last=now;const dt=Math.min(raw,.075);elapsed+=dt;
-  if(document.hidden)return;
+  if(document.hidden||sim.phase==='intro'&&document.getElementById('loading-screen'))return;
   if(!paused&&sim.phase==='playing'){accumulator+=dt;let steps=0;while(accumulator>=1/30&&steps<4){sim.update(1/30);accumulator-=1/30;steps++;}for(const event of sim.events){effects.event(event);audio.event(event,input.center);if(event.type==='capture')hud.notice(event.team===0?`سيطرنا على ${sim.points[event.value!].name}`:`الفيلق النحاسي يسيطر على ${sim.points[event.value!].name}`);if(event.type==='reinforce'&&event.team===0)hud.notice('وصلت فرقة بديلة إلى القاعدة');}sim.events=[];}
   if(sim.phase==='intro'){input.center.x=-12+(software?0:Math.sin(elapsed*.07)*4);input.center.z=-3+(software?0:Math.cos(elapsed*.06)*2);const q=sim.squads[5];q.x=-3+Math.sin(elapsed*.18)*9;q.z=-17;q.angle=Math.cos(elapsed*.18)>0?Math.PI/2:-Math.PI/2;q.turret=q.angle;q.speed=1.6;const s=sim.soldiers[q.members[0]];s.x=q.x;s.z=q.z;s.hp=s.maxHp;}
   if(sim.phase==='ended')input.desiredSpan=137;
@@ -91,7 +93,7 @@ boot().catch(error=>{
   const retry=new URL(location.href);retry.searchParams.set('renderer','webgl');
   location.replace(retry.href);return;
  }
- const box=document.createElement('div');box.className='error-screen';
+ loading.fail();const box=document.createElement('div');box.className='error-screen';
  const title=document.createElement('h1');title.textContent='خط الرمل';
  const message=document.createElement('p');message.textContent='تعذّر إكمال تحميل ساحة المعركة. أعد المحاولة، وإذا استمرت المشكلة أرسل لنا تفاصيل الخطأ أدناه.';
  const details=document.createElement('details'),label=document.createElement('summary'),detail=document.createElement('pre');
