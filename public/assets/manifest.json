@@ -127,15 +127,15 @@
     },
     {
       "name": "vehicle_body_lod2",
-      "triangles": 98
+      "triangles": 102
     },
     {
       "name": "vehicle_turret_lod1",
-      "triangles": 41
+      "triangles": 89
     },
     {
       "name": "vehicle_turret_lod2",
-      "triangles": 24
+      "triangles": 32
     },
     {
       "name": "vehicle_wheel_lod1",

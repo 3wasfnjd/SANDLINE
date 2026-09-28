@@ -28,6 +28,10 @@ The capture condition requires infantry. Both teams inside a capture region cont
 
 The scene uses one sun, one ambient hemisphere, a terrain heightfield and chunked static batches. Modular buildings have roof parapets, arched entrances, shutters, awnings, roof steps and small props. Layered sandstone and feathered palm fronds establish the desert identity. Vertex colors supply the unified palette, with a tiny procedural sand texture for close views.
 
+The Motri environment pass adds continuous soil/vegetation masks in `landscape.ts`, three imported static basalt meshes normalized to the existing obstacle footprints, an irrigated oasis, sparse sidr trees and small textured courtyards. `Vegetation` combines up to 900 four-blade tufts into one mesh; tip sway updates at 15 Hz. Grass is excluded from buildings, cover, capture circles, the spring and marked footpaths.
+
+`Weather` consumes a continuous presentation clock. A 240-second cycle blends cloud cover, a gentle shower, wind and residual wetness. One terrain-following transparent layer supplies moving cloud shadows, and one reusable line buffer holds up to 260 rain drops. Quality scales visible rain counts; weather never changes targeting, AI or movement. Sun intensity, ambient fill, ground specularity, fog, synthesized wind and rain audio follow the same state. Pausing freezes the weather clock.
+
 Environment shadow maps are rendered once and reused. Units receive cheap contact shadows; dozens of fully dynamic shadow casters are avoided. Mild ACES tone mapping and distance fog unify the scene. There is no expensive SSAO, depth of field, bloom stack, full screen blur or full rigid-body physics.
 
 Soldiers use shared articulated parts and a common procedural rig. All instances of a part at a given LOD are one thin-instance batch. Per-instance matrix/color data specifies world pose and faction. Independent phases avoid synchronized marching. Walk/run, breathing idle, aim/fire, reload, hit, crouch and death are produced from the shared pose functions. This is an articulated mesh rig, not a licensed humanoid animation package or hundreds of cloned skeletons.

@@ -5,6 +5,7 @@ import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Simulation } from '../core/simulation';
 import { heightAt,coverAt } from '../core/map';
 import { Soldier,Squad,clamp } from '../core/types';
+import {bakeImportedMesh} from './imported-mesh';
 
 class Batch {
  readonly matrices=new Float32Array(1024*16);readonly colors=new Float32Array(1024*4);count=0;
@@ -20,7 +21,7 @@ export class UnitRenderer{
  constructor(readonly scene:Scene){this.staticPalette=new StandardMaterial('unit vertex palette',scene);this.staticPalette.diffuseColor=Color3.White();this.staticPalette.specularColor=new Color3(.19,.18,.14);}
  async load(){
   const loaded=await SceneLoader.ImportMeshAsync('','/assets/','sandline-units.glb',this.scene);
-  for(const node of loaded.meshes){if(!(node instanceof Mesh)||!node.getTotalVertices())continue;node.bakeCurrentTransformIntoVertices();node.overrideMaterialSideOrientation=this.staticPalette.sideOrientation??1;node.material=this.staticPalette;node.receiveShadows=false;this.batches.set(node.name,new Batch(node));}
+  for(const node of loaded.meshes){if(!(node instanceof Mesh)||!node.getTotalVertices())continue;bakeImportedMesh(node);node.material=this.staticPalette;node.receiveShadows=false;this.batches.set(node.name,new Batch(node));}
   loaded.meshes.filter(m=>!m.getTotalVertices()).forEach(m=>m.dispose());
   for(const name of ['soldier_torso','soldier_head','soldier_upperarm','soldier_forearm','soldier_thigh','soldier_shin','weapon_rifle','weapon_mg','weapon_at','vehicle_body','vehicle_turret','vehicle_wheel'])if(!this.batches.has(name))throw new Error('Missing authored unit part: '+name);
   const blob=MeshBuilder.CreateDisc('soft-contact-shadows',{radius:.6,tessellation:12},this.scene);blob.rotation.x=Math.PI/2;blob.bakeCurrentTransformIntoVertices();const mat=new StandardMaterial('ground contact',this.scene);mat.diffuseColor=new Color3(.14,.14,.1);mat.alpha=.23;mat.disableLighting=true;mat.backFaceCulling=false;blob.material=mat;this.batches.set('shadow',new Batch(blob));

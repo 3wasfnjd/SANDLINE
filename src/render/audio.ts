@@ -2,17 +2,20 @@ import {BattleEvent,Vec} from '../core/types';
 import {Simulation} from '../core/simulation';
 export class AudioSystem{
  private context:AudioContext|null=null;private master:GainNode|null=null;private noise:AudioBuffer|null=null;private voices=0;private last=new Map<string,number>();private engines:{osc:OscillatorNode;gain:GainNode;pan:StereoPannerNode}[]=[];private musicTime=0;
+ private windGain:GainNode|null=null;private rainGain:GainNode|null=null;private windFilter:BiquadFilterNode|null=null;
  muted=localStorage.getItem('sandline-muted')==='1';
  async start(){
   if(this.context){await this.context.resume();return;}
   const ctx=this.context=new AudioContext();this.master=ctx.createGain();this.master.gain.value=this.muted?0:.65;this.master.connect(ctx.destination);
   this.noise=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const data=this.noise.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
-  const wind=ctx.createBufferSource();wind.buffer=this.noise;wind.loop=true;const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=650;const g=ctx.createGain();g.gain.value=.026;wind.connect(f).connect(g).connect(this.master);wind.start();
+  const wind=ctx.createBufferSource();wind.buffer=this.noise;wind.loop=true;const f=this.windFilter=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=650;const g=this.windGain=ctx.createGain();g.gain.value=.026;wind.connect(f).connect(g).connect(this.master);wind.start();
+  const rain=ctx.createBufferSource();rain.buffer=this.noise;rain.loop=true;rain.playbackRate.value=1.17;const rainFilter=ctx.createBiquadFilter();rainFilter.type='highpass';rainFilter.frequency.value=1350;this.rainGain=ctx.createGain();this.rainGain.gain.value=0;rain.connect(rainFilter).connect(this.rainGain).connect(this.master);rain.start(0,.7);
   for(let i=0;i<2;i++){const osc=ctx.createOscillator();osc.type='sawtooth';osc.frequency.value=42;const filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=170;const gain=ctx.createGain();gain.gain.value=.005;const pan=ctx.createStereoPanner();osc.connect(filter).connect(gain).connect(pan).connect(this.master);osc.start();this.engines.push({osc,gain,pan});}
   await ctx.resume();this.radio();
  }
  toggle(){this.muted=!this.muted;localStorage.setItem('sandline-muted',this.muted?'1':'0');if(this.master&&this.context)this.master.gain.setTargetAtTime(this.muted?0:.65,this.context.currentTime,.08);return this.muted;}
  pause(paused:boolean){if(!this.context)return;if(paused)void this.context.suspend();else void this.context.resume();}
+ weather(rain:number,wind:number){if(!this.context||this.context.state!=='running')return;const t=this.context.currentTime;this.windGain?.gain.setTargetAtTime(.018+wind*.035,t,.8);this.windFilter?.frequency.setTargetAtTime(400+wind*700,t,1);this.rainGain?.gain.setTargetAtTime(rain*.075,t,.7);}
  private tone(frequency:number,time:number,length:number,volume:number){if(!this.context||!this.master)return;const c=this.context,o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=frequency;g.gain.setValueAtTime(.001,time);g.gain.exponentialRampToValueAtTime(volume,time+.02);g.gain.exponentialRampToValueAtTime(.0001,time+length);o.connect(g).connect(this.master);o.start(time);o.stop(time+length+.02);o.onended=()=>{o.disconnect();g.disconnect();};}
  radio(){if(!this.context)return;const t=this.context.currentTime;this.tone(950,t,.08,.042);this.tone(1200,t+.12,.11,.036);}
  event(e:BattleEvent,listener:Vec){

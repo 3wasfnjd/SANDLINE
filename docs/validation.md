@@ -19,7 +19,7 @@ Completed through the visible interface:
 
 ## Automated gates
 
-`tests/assets.ts` checks the GLB binary header/length, all 36 named source/LOD parts, a single primitive per part, nonempty geometric LODs, and soldier triangle budgets. Measured GLB size: 234,152 bytes. Rifleman geometry: 2,392 / 657 / 366 triangles.
+`tests/assets.ts` checks the GLB binary header/length, all 36 named source/LOD parts, a single primitive per part, nonempty geometric LODs, and soldier triangle budgets. Measured GLB size after the imported-geometry correction: 236,268 bytes. Rifleman geometry: 2,392 / 657 / 366 triangles.
 
 `tests/simulation.ts` validates building-safe A* routes, directional cover, reaching/capturing a point, retreat recovery, active combat/deaths/replacements, match termination, victory/defeat, time-limit draw and reset. It runs full matches with fixed seeds. See `match-tests.json` for exact outcomes.
 
@@ -44,3 +44,13 @@ Reviewed at the actual gameplay camera: start composition, Arabic text hierarchy
 - The match is self-contained; refresh begins a fresh session. There are no accounts, campaign save files or multiplayer services.
 
 The release is a complete playable first game build, with the device-certification limits above, rather than a claim that all target hardware has passed a commercial release matrix.
+
+## Motri environment update
+
+The environment update was reviewed again in the same remote Chrome compatibility renderer, including the imported basalt geometry, terrain layers, oasis and planting, cloud shadows, rainfall and the 390 × 844 portrait layout. Desktop and portrait capture commands still work. A further naturally ending desktop match reached Defeat at 04:54 (12 individual losses, 31 remaining); restarting reset both ticket counters to 500 and the seven-minute clock, and capture orders were issued again. This is a sparse-orders UI acceptance run, not a balance benchmark.
+
+A short development stress scene with 60 combatants was observed during rain at about 36 simulated seconds: 651 shots, 88 live effect particles and approximately 31 FPS in the Canvas compatibility renderer. This is one uncontrolled remote-browser sample, not a measured phone target or a comparison with the baseline.
+
+The new `tests/imported-geometry.ts` exercises the actual Babylon glTF importer for all 39 unit and scenery meshes. It verifies finite positions/normals and front-face winding after transform baking. This caught and corrected both the imported-mesh orientation mismatch and an undefined vehicle rotation default in the asset generator. Asset checks and the TypeScript build pass. The continuous weather function was sampled every 0.1 second across three full cycles to check bounds and transition continuity. Shared simulation and navigation files were not changed.
+
+New reference captures: `qa/motri-environment.jpg` and `qa/motri-portrait.jpg`. They show the compatibility renderer. The GPU effects and real-device limitations above still apply.

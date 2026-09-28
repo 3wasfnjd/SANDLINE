@@ -9,6 +9,8 @@ import {AudioSystem} from './render/audio';
 import {HUD} from './ui/hud';
 import {BattlefieldInput} from './input';
 import {CompatibilityEngine,SoftwareRenderer} from './render/software';
+import {Vegetation} from './render/vegetation';
+import {Weather} from './render/weather';
 
 async function boot(){
  let canvas=document.querySelector('#battlefield') as HTMLCanvasElement;canvas.setAttribute('aria-label','ساحة معركة خط الرمل');
@@ -22,8 +24,10 @@ async function boot(){
  let qualityLevel=2;engine.setHardwareScalingLevel(1/Math.min(devicePixelRatio,1.5));
  const scene=new Scene(engine);scene.skipPointerMovePicking=true;scene.autoClear=true;scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.15;scene.imageProcessingConfiguration.contrast=1.15;
  const camera=new ArcRotateCamera('command camera',-Math.PI/2-.16,.79,120,new Vector3(-11,1,-4),scene);camera.mode=Camera.ORTHOGRAPHIC_CAMERA;camera.minZ=.1;camera.maxZ=400;camera.inputs.clear();camera.inertia=0;
- const world=new World(scene);if(engine instanceof CompatibilityEngine)software=new SoftwareRenderer(scene,canvas,scene.meshes.filter(m=>m instanceof Mesh) as Mesh[]);
- const units=new UnitRenderer(scene),effects=new Effects(scene),audio=new AudioSystem();let sim=new Simulation(),paused=false,ready=false,elapsed=0,accumulator=0,last=performance.now(),qualityTimer=0,frameSamples:number[]=[],renderSamples:number[]=[],lastUI=0;
+ const world=new World(scene);await world.loadScenery();const vegetation=new Vegetation(scene);
+ if(engine instanceof CompatibilityEngine)software=new SoftwareRenderer(scene,canvas,scene.meshes.filter(m=>m instanceof Mesh) as Mesh[]);
+ const weather=new Weather(scene,world,Boolean(software));
+ const units=new UnitRenderer(scene),effects=new Effects(scene),audio=new AudioSystem();let sim=new Simulation(),paused=false,ready=false,elapsed=0,environmentTime=0,accumulator=0,last=performance.now(),qualityTimer=0,frameSamples:number[]=[],renderSamples:number[]=[],lastUI=0;
  let hud:HUD,input:BattlefieldInput;
  function select(id:number,multi=false){const q=sim.squads[id];if(!q||q.team!==0||q.dead||sim.phase!=='playing')return;if(multi){sim.selected=sim.selected.includes(id)?sim.selected.filter(i=>i!==id):[...sim.selected,id];}else sim.selected=[id];audio.radio();}
  function ordered(p:Vec,kind:string){effects.order(p.x,p.z);audio.radio();if(kind==='retreat')hud.notice('انسحاب إلى القاعدة · التعافي ثم العودة إلى الجبهة');else if(kind==='move')hud.notice('تحرّك إلى الموضع المحدد');else if(kind==='attack')hud.notice('أمر اشتباك مباشر');}
@@ -40,7 +44,7 @@ async function boot(){
  const stress=import.meta.env.DEV&&[30,60,100,200,300,500].includes(requestedStress)?requestedStress:0;
  let stressOutput:HTMLElement|undefined,lastStressBurst=0;
  if(import.meta.env.DEV&&stress){sim=new Simulation(813,stress);sim.aiPlayer=true;sim.start();sim.duration=120;input.center={x:0,z:0};input.span=input.desiredSpan=122;hud.root.style.display='none';stressOutput=document.createElement('output');stressOutput.setAttribute('aria-label','Stress scene results');stressOutput.style.cssText='position:fixed;bottom:12px;left:12px;background:#142c2eea;color:#e8e5cb;padding:14px;font:12px monospace;white-space:pre;direction:ltr;z-index:100;pointer-events:none';document.body.append(stressOutput);}
- function applyQuality(){const scale=[.75,1,Math.min(devicePixelRatio,1.5)][qualityLevel];engine.setHardwareScalingLevel(1/scale);effects.quality=[.5,.75,1][qualityLevel];if(qualityLevel===0){world.shadows.getShadowMap()!.resize(512);world.freezeShadows();}engine.resize();}
+ function applyQuality(){const scale=[.75,1,Math.min(devicePixelRatio,1.5)][qualityLevel];engine.setHardwareScalingLevel(1/scale);effects.quality=[.5,.75,1][qualityLevel];weather.setQuality([.4,.7,1][qualityLevel]);if(qualityLevel===0){world.shadows.getShadowMap()!.resize(512);world.freezeShadows();}engine.resize();}
  const finishFrame=()=>new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
  registerTools(()=>sim,{start,restart,pause,ready:()=>ready,after:finishFrame,orders:(ids,order,p,target)=>{sim.selected=ids;sim.issue(ids,order,p,target);if(p)ordered(p,order);},performance:()=>({backend,quality:['low','medium','high'][qualityLevel],fps:Math.round(1000/(renderSamples.reduce((n,a)=>n+a,0)/Math.max(1,renderSamples.length))),visibleIndividuals:sim.soldiers.filter(s=>s.hp>0&&sim.visible(sim.squads[s.squad])).length})});
  engine.runRenderLoop(()=>{
@@ -49,9 +53,9 @@ async function boot(){
   if(!paused&&sim.phase==='playing'){accumulator+=dt;let steps=0;while(accumulator>=1/30&&steps<4){sim.update(1/30);accumulator-=1/30;steps++;}for(const event of sim.events){effects.event(event);audio.event(event,input.center);if(event.type==='capture')hud.notice(event.team===0?`سيطرنا على ${sim.points[event.value!].name}`:`الفيلق النحاسي يسيطر على ${sim.points[event.value!].name}`);if(event.type==='reinforce'&&event.team===0)hud.notice('وصلت فرقة بديلة إلى القاعدة');}sim.events=[];}
   if(sim.phase==='intro'){input.center.x=-12+(software?0:Math.sin(elapsed*.07)*4);input.center.z=-3+(software?0:Math.cos(elapsed*.06)*2);const q=sim.squads[5];q.x=-3+Math.sin(elapsed*.18)*9;q.z=-17;q.angle=Math.cos(elapsed*.18)>0?Math.PI/2:-Math.PI/2;q.turret=q.angle;q.speed=1.6;const s=sim.soldiers[q.members[0]];s.x=q.x;s.z=q.z;s.hp=s.maxHp;}
   if(sim.phase==='ended')input.desiredSpan=137;
-  input.update(software?1:dt);world.update(elapsed);for(const p of sim.points)world.setPoint(p.id,p.owner,p.progress,p.contested);
+  input.update(software?1:dt);if(!paused)environmentTime+=dt;weather.update(environmentTime,paused?0:dt,input.center,input.span);if(!software)vegetation.update(environmentTime,weather.state.wind);world.update(environmentTime);audio.weather(weather.state.rain,weather.state.wind);for(const p of sim.points)world.setPoint(p.id,p.owner,p.progress,p.contested);
   if(!software)units.update(sim,paused?sim.time:elapsed,input.span>128?2:input.span>100?1:0);if(!paused)effects.update(dt,elapsed,camera,sim);audio.update(sim,input.center);
-  scene.render();software?.draw(sim,effects,elapsed);if(now-lastUI>50){if(!stress)hud.update(sim,scene,now);lastUI=now;}
+  scene.render();software?.draw(sim,effects,elapsed,weather,environmentTime);if(now-lastUI>50){if(!stress)hud.update(sim,scene,now);lastUI=now;}
   if(import.meta.env.DEV&&stressOutput){if(sim.time-lastStressBurst>7){lastStressBurst=sim.time;effects.event({type:'death',x:20,z:0,team:0,role:'vehicle'});}stressOutput.textContent=JSON.stringify({mode:'internal stress scene',renderer:backend,combatants:stress,seconds:Math.floor(sim.time),shots:sim.totalShots,particles:effects.particles.length,fps:Math.round(1000/(renderSamples.reduce((n,x)=>n+x,0)/Math.max(1,renderSamples.length)))},null,2);}
   if(raw<.5&&raw>.002){renderSamples.push(raw*1000);if(renderSamples.length>180)renderSamples.shift();}
   if(sim.phase==='playing'&&sim.time>6&&!paused&&raw<.3){frameSamples.push(raw);qualityTimer+=dt;if(qualityTimer>5){const avg=frameSamples.reduce((n,x)=>n+x,0)/frameSamples.length;frameSamples=[];qualityTimer=0;if(avg>.037&&qualityLevel>0){qualityLevel--;applyQuality();}}}

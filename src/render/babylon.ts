@@ -14,6 +14,8 @@ export {VertexData} from '@babylonjs/core/Meshes/mesh.vertexData';
 export {VertexBuffer} from '@babylonjs/core/Buffers/buffer';
 export {StandardMaterial} from '@babylonjs/core/Materials/standardMaterial';
 export {DynamicTexture} from '@babylonjs/core/Materials/Textures/dynamicTexture';
+export {Texture} from '@babylonjs/core/Materials/Textures/texture';
+export {LinesMesh} from '@babylonjs/core/Meshes/linesMesh';
 export {ImageProcessingConfiguration} from '@babylonjs/core/Materials/imageProcessingConfiguration';
 export {DirectionalLight} from '@babylonjs/core/Lights/directionalLight';
 export {HemisphericLight} from '@babylonjs/core/Lights/hemisphericLight';

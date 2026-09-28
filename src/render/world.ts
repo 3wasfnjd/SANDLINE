@@ -1,35 +1,37 @@
-import { Scene,Mesh,MeshBuilder,VertexData,StandardMaterial,Color3,Color4,Vector3,DirectionalLight,HemisphericLight,ShadowGenerator,DynamicTexture } from './babylon';
+import { Scene,Mesh,MeshBuilder,VertexData,VertexBuffer,StandardMaterial,Color3,Color4,Vector3,DirectionalLight,HemisphericLight,ShadowGenerator,DynamicTexture,Texture,SceneLoader } from './babylon';
 import { OBSTACLES,COVERS,POINTS,BASES,heightAt } from '../core/map';
 import { randomGenerator } from '../core/types';
+import {surfaceColor} from './landscape';
+import {bakeImportedMesh} from './imported-mesh';
 
 export const PALETTE={sand:'#ba9c71',sun:'#ffe2ac',rock:'#8d6c50',mud:'#b69470',teal:'#60c3b5',copper:'#dc7854',ink:'#14272b'};
 export class World {
- readonly materials=new Map<string,StandardMaterial>();readonly points:Mesh[]=[];readonly flags:Mesh[]=[];readonly shadows:ShadowGenerator;readonly sun:DirectionalLight;
+ readonly materials=new Map<string,StandardMaterial>();readonly points:Mesh[]=[];readonly flags:Mesh[]=[];readonly shadows:ShadowGenerator;readonly sun:DirectionalLight;readonly sky:HemisphericLight;
+ ground!:Mesh;groundMaterial!:StandardMaterial;private water:Mesh[]=[];
  private batches=new Map<string,Mesh[]>();private rnd=randomGenerator(537);private animatedFlags:Mesh[]=[];
  constructor(readonly scene:Scene){
-  scene.clearColor=Color4.FromHexString('#bdad91ff');scene.ambientColor=new Color3(.35,.37,.36);
-  scene.fogMode=Scene.FOGMODE_EXP2;scene.fogDensity=.0025;scene.fogColor=Color3.FromHexString('#c7b69a');
-  const hemi=new HemisphericLight('sky',new Vector3(.2,1,0),scene);hemi.intensity=.74;hemi.diffuse=Color3.FromHexString('#d4e1df');hemi.groundColor=Color3.FromHexString('#69584a');
-  this.sun=new DirectionalLight('late desert sun',new Vector3(-.65,-1,.5),scene);this.sun.position=new Vector3(40,70,-35);this.sun.intensity=2.3;this.sun.diffuse=Color3.FromHexString('#ffdfaa');this.sun.shadowMinZ=1;this.sun.shadowMaxZ=180;this.sun.autoCalcShadowZBounds=true;
+  scene.clearColor=Color4.FromHexString('#b3c7c4ff');scene.ambientColor=new Color3(.32,.37,.41);
+  scene.fogMode=Scene.FOGMODE_EXP2;scene.fogDensity=.0028;scene.fogColor=Color3.FromHexString('#b4c3ba');
+  const hemi=this.sky=new HemisphericLight('sky',new Vector3(.2,1,0),scene);hemi.intensity=.82;hemi.diffuse=Color3.FromHexString('#b6d3d9');hemi.groundColor=Color3.FromHexString('#a77852');
+  this.sun=new DirectionalLight('late desert sun',new Vector3(-.65,-1,.5),scene);this.sun.position=new Vector3(40,70,-35);this.sun.intensity=1.9;this.sun.diffuse=Color3.FromHexString('#ffe6be');this.sun.shadowMinZ=1;this.sun.shadowMaxZ=180;this.sun.autoCalcShadowZBounds=true;
   this.shadows=new ShadowGenerator(1024,this.sun);this.shadows.usePercentageCloserFiltering=true;this.shadows.filteringQuality=ShadowGenerator.QUALITY_LOW;this.shadows.bias=.001;this.shadows.normalBias=.04;this.shadows.darkness=.32;
   this.terrain();this.roads();this.cliffs();
-  OBSTACLES.forEach((o,i)=>{if(o.kind==='building')this.building(o.x,o.z,o.w,o.d,o.h,i);else this.rock(o.x,o.z,o.w,o.h,o.d,i);});
+  OBSTACLES.forEach((o,i)=>{if(o.kind==='building')this.building(o.x,o.z,o.w,o.d,o.h,i);});
   for(const c of COVERS)this.cover(c.x,c.z,c.length,c.angle,c.kind);
-  this.objectives();this.bases();this.details();this.finishBatches();
+  this.objectives();this.bases();this.details();this.oasis();this.finishBatches();
  }
  mat(hex:string,emissive=false){const key=hex+(emissive?'e':'');let m=this.materials.get(key);if(m)return m;m=new StandardMaterial(key,this.scene);m.diffuseColor=Color3.FromHexString(hex);m.specularColor=new Color3(.07,.065,.05);if(emissive){m.emissiveColor=m.diffuseColor.scale(.8);m.disableLighting=true;}this.materials.set(key,m);return m;}
  add(m:Mesh,hex:string,pos:Vector3,rot?:Vector3,batch=true){m.material=this.mat(hex);m.position.copyFrom(pos);if(rot)m.rotation.copyFrom(rot);m.isPickable=false;m.receiveShadows=true;if(batch){const key=hex+':'+Math.floor(pos.x/22)+':'+Math.floor(pos.z/22);const list=this.batches.get(key)||[];list.push(m);this.batches.set(key,list);}return m;}
  box(w:number,h:number,d:number,x:number,y:number,z:number,hex:string,rot?:Vector3,batch=true){return this.add(MeshBuilder.CreateBox('architecture',{width:w,height:h,depth:d},this.scene),hex,new Vector3(x,y,z),rot,batch);}
  cyl(top:number,bottom:number,h:number,x:number,y:number,z:number,hex:string,tess=12,rot?:Vector3,batch=true){return this.add(MeshBuilder.CreateCylinder('detail',{diameterTop:top,diameterBottom:bottom,height:h,tessellation:tess},this.scene),hex,new Vector3(x,y,z),rot,batch);}
  private terrain(){
-  const vertices:number[]=[],indices:number[]=[],colors:number[]=[],uv:number[]=[],n=112,size=152;
-  for(let iz=0;iz<=n;iz++)for(let ix=0;ix<=n;ix++){const x=(ix/n-.5)*size,z=(iz/n-.5)*size,h=heightAt(x,z),noise=this.rnd();vertices.push(x,h,z);uv.push(ix/n,iz/n);
-   const shade=.91+noise*.13+.08*Math.sin(x*.11+z*.15),wadi=Math.exp(-((x-24-3*Math.sin(z*.1))**2)/52);colors.push((.68-wadi*.08)*shade,(.535-wadi*.065)*shade,(.355-wadi*.05)*shade,1);}
+  const vertices:number[]=[],indices:number[]=[],colors:number[]=[],uv:number[]=[],n=128,size=152;
+  for(let iz=0;iz<=n;iz++)for(let ix=0;ix<=n;ix++){const x=(ix/n-.5)*size,z=(iz/n-.5)*size,h=heightAt(x,z);vertices.push(x,h,z);uv.push(ix/n,iz/n);colors.push(...surfaceColor(x,z),1);}
   for(let z=0;z<n;z++)for(let x=0;x<n;x++){const a=z*(n+1)+x;indices.push(a,a+1,a+n+1,a+1,a+n+2,a+n+1);}
   const normals:number[]=[];VertexData.ComputeNormals(vertices,indices,normals);const v=new VertexData();v.positions=vertices;v.indices=indices;v.normals=normals;v.colors=colors;v.uvs=uv;
-  const m=new Mesh('desert-terrain',this.scene);v.applyToMesh(m);m.material=this.mat('#ffffff');m.receiveShadows=true;m.isPickable=true;m.metadata={ground:true};m.freezeWorldMatrix();
+  const m=this.ground=new Mesh('desert-terrain',this.scene);v.applyToMesh(m);this.groundMaterial=new StandardMaterial('layered sand and soil',this.scene);this.groundMaterial.diffuseColor=Color3.White();this.groundMaterial.specularColor=new Color3(.04,.05,.05);m.material=this.groundMaterial;m.receiveShadows=true;m.isPickable=true;m.metadata={ground:true};m.freezeWorldMatrix();
   // A tiny repeating sand grain breaks up surfaces without large texture downloads.
-  const tex=new DynamicTexture('sand-grain',{width:128,height:128},this.scene,false);const ctx=tex.getContext();ctx.fillStyle='#f0e8d8';ctx.fillRect(0,0,128,128);for(let i=0;i<5000;i++){const a=this.rnd()*.12;ctx.fillStyle=`rgba(81,58,32,${a})`;ctx.fillRect(this.rnd()*128,this.rnd()*128,1,1);}tex.update();tex.uScale=42;tex.vScale=42;(m.material as StandardMaterial).diffuseTexture=tex;
+  const tex=new DynamicTexture('sand-grain',{width:128,height:128},this.scene,false);const ctx=tex.getContext();ctx.fillStyle='#fff8e9';ctx.fillRect(0,0,128,128);for(let i=0;i<5000;i++){const a=this.rnd()*.1;ctx.fillStyle=`rgba(81,58,32,${a})`;ctx.fillRect(this.rnd()*128,this.rnd()*128,1,1);}tex.update();tex.uScale=42;tex.vScale=42;this.groundMaterial.diffuseTexture=tex;
  }
  ribbon(name:string,points:{x:number;z:number}[],width:number,color:string,offset=.03){
   const p:number[]=[],idx:number[]=[],col:number[]=[];
@@ -101,7 +103,6 @@ export class World {
  private bases(){for(let t=0;t<2;t++){const b=BASES[t],y=heightAt(b.x,b.z),color=t?'#965941':'#466e69';this.cyl(4.8,5,.12,b.x,y+.02,b.z,'#8e7e61',32);for(const x of [-23,23]){const z=b.z+(t?4:-4);this.box(5,1.8,3,x,heightAt(x,z)+.9,z,color);for(let j=0;j<9;j++)this.box(.1,1.85,3.05,x-2.3+j*.57,heightAt(x,z)+.93,z,t?'#82513f':'#405c57');this.box(5.12,.12,3.12,x,heightAt(x,z)+1.86,z,'#8b8768');}this.cyl(.1,.14,7,-8,y+3.5,b.z,'#555947',8);const flag=this.box(2.6,1.25,.035,-6.7,y+6,b.z,color,undefined,false);this.animatedFlags.push(flag);}}
  private details(){
   for(const [x,z,s] of [[-42,-15,1],[-38,-18,.85],[-45,-8,.95],[-36,9,.8],[-20,10,.9],[37,4,.86],[33,11,.9],[-7,25,.72]])this.palm(x,z,s);
-  this.cyl(6.8,6.8,.06,-42,heightAt(-42,-14)+.025,-14,'#516e65',48);
   for(let i=0;i<170;i++){const x=(this.rnd()-.5)*102,z=(this.rnd()-.5)*87;if(OBSTACLES.some(o=>Math.abs(x-o.x)<o.w&&Math.abs(z-o.z)<o.d)||POINTS.some(p=>Math.hypot(x-p.x,z-p.z)<7))continue;const y=heightAt(x,z),size=.12+this.rnd()*.4;
    if(i%3===0)this.rock(x,z,size*2,size,size*1.5,i+300);else{for(let j=0;j<3;j++)this.box(.055,size*1.7,.05,x+(j-1)*.12,y+size*.75,z,'#827d50',new Vector3((this.rnd()-.5)*.9,0,(this.rnd()-.5)*1.4));}}
   // Checkpoint at the eastern crossing, with guard towers and concrete roadblocks.
@@ -109,8 +110,56 @@ export class World {
   for(const x of [20,32]){const z=-11,y=heightAt(x,z);this.box(3,.85,.7,x,y+.425,z,'#b7ac8d');for(const dx of [-.8,.8])this.box(.35,.87,.715,x+dx,y+.44,z,'#6e6c55',new Vector3(0,0,-.3));}
   for(let i=0;i<13;i++){const x=-37+(i%4)*.75,z=-10-Math.floor(i/4)*.7,y=heightAt(x,z);this.box(.62,.63,.58,x,y+.315,z,i%2?'#827859':'#716b50');this.box(.65,.04,.61,x,y+.53,z,'#9c8c67');}
  }
+ private oasis(){
+  // A shallow spring uses the same ground height as soldiers: no hidden collision surface.
+  const p:number[]=[],c:number[]=[],idx:number[]=[],segments=64;
+  for(let ring=0;ring<=4;ring++)for(let i=0;i<segments;i++){
+   const angle=i/segments*Math.PI*2,r=ring/4*(1+.065*Math.sin(angle*5)+.035*Math.cos(angle*3));
+   const x=-42+Math.cos(angle)*4.3*r,z=-14+Math.sin(angle)*3.15*r;
+   p.push(x,heightAt(x,z)+.07,z);const t=ring/4;c.push(.2+t*.21,.4+t*.2,.41+t*.11,1);
+   if(ring<4){const a=ring*segments+i,b=ring*segments+(i+1)%segments;idx.push(a,b,a+segments,b,b+segments,a+segments);}
+  }
+  const normals:number[]=[];VertexData.ComputeNormals(p,idx,normals);const data=new VertexData();data.positions=p;data.indices=idx;data.colors=c;data.normals=normals;
+  const pond=new Mesh('spring water',this.scene);data.applyToMesh(pond);pond.material=this.mat('#ffffff');pond.isPickable=false;pond.freezeWorldMatrix();
+  for(let j=0;j<3;j++){const points=[];for(let i=0;i<=40;i++){const a=i/40*Math.PI*2,r=1+j*.85,x=-42+Math.cos(a)*r,z=-14+Math.sin(a)*r*.65;points.push(new Vector3(x,heightAt(x,z)+.09,z));}const ripple=MeshBuilder.CreateLines('spring ripple',{points},this.scene);ripple.color=Color3.FromHexString('#94c0ad');ripple.alpha=.24;ripple.isPickable=false;this.water.push(ripple);}
+  // Small paving patches reuse Motri's actual stone atlas, not its driving map.
+  const paving=new StandardMaterial('Motri stone paving',this.scene);paving.diffuseColor=Color3.FromHexString('#cfb691');paving.specularColor=Color3.Black();
+  const slabs=new Texture('/assets/motri-slabs.png',this.scene);slabs.uScale=2;slabs.vScale=1.5;paving.diffuseTexture=slabs;
+  for(const [x,z,w,d] of [[-31,-3,5,4],[-32,7,4,3],[4,21,4,3]]){
+   const tile=MeshBuilder.CreateGround('village paving',{width:w,height:d,subdivisions:5},this.scene);const v=tile.getVerticesData(VertexBuffer.PositionKind)!;
+   for(let i=0;i<v.length;i+=3)v[i+1]=heightAt(v[i]+x,v[i+2]+z)+.055;tile.setVerticesData(VertexBuffer.PositionKind,v);tile.position.set(x,0,z);tile.material=paving;tile.receiveShadows=true;tile.isPickable=false;tile.freezeWorldMatrix();
+  }
+  // Irrigated strips and low farm rails at the village edge, leaving the flanking lane open.
+  for(let row=0;row<5;row++)this.ribbon('garden furrow',[{x:-45,z:17+row*.9},{x:-38.5,z:17+row*.9}],.32,row%2?'#747b43':'#8d8251',.07);
+  for(const z of [16,22])for(let j=0;j<4;j++){const x=-46+j*2.2,y=heightAt(x,z);this.box(.12,1.1,.12,x,y+.55,z,'#927d5d');if(j<3)for(const h of [.38,.78])this.box(2.1,.09,.08,x+1.1,y+h,z,'#b39b72');}
+  for(const [x,z]of [[-46,17],[-47,-21],[45,14],[44,-13]]){
+   const y=heightAt(x,z);this.cyl(.18,.45,3.2,x,y+1.6,z,'#665c44',8);
+   for(let i=0;i<5;i++){const a=i*2.4,m=MeshBuilder.CreateSphere('sidr canopy',{diameterX:3.1,diameterY:1.8,diameterZ:2.6,segments:7},this.scene);this.add(m,i%2?'#617643':'#7b884c',new Vector3(x+Math.cos(a)*.8,y+3.1+(i%2)*.5,z+Math.sin(a)*.7));}
+  }
+ }
+ async loadScenery(){
+  const loaded=await SceneLoader.ImportMeshAsync('','/assets/','motri-basalt.glb',this.scene);
+  const templates=loaded.meshes.filter((m):m is Mesh=>m instanceof Mesh&&m.getTotalVertices()>0);
+  if(templates.length!==3)throw new Error('Incomplete Motri rock kit');
+  for(const mesh of templates){
+   bakeImportedMesh(mesh);mesh.parent=null;mesh.position.setAll(0);mesh.scaling.setAll(1);mesh.rotationQuaternion=null;mesh.rotation.setAll(0);
+   const vertices=mesh.getVerticesData(VertexBuffer.PositionKind)!,indices=mesh.getIndices()!;
+   const b=mesh.getBoundingInfo().boundingBox,min=b.minimum,max=b.maximum;
+   for(let i=0;i<vertices.length;i+=3){vertices[i]=(vertices[i]-(min.x+max.x)/2)/Math.max(.01,max.x-min.x);vertices[i+1]=(vertices[i+1]-min.y)/Math.max(.01,max.y-min.y);vertices[i+2]=(vertices[i+2]-(min.z+max.z)/2)/Math.max(.01,max.z-min.z);}
+   const normals:number[]=[];VertexData.ComputeNormals(vertices,indices,normals);mesh.setVerticesData(VertexBuffer.PositionKind,vertices);mesh.setVerticesData(VertexBuffer.NormalKind,normals);mesh.overrideMaterialSideOrientation=1;mesh.isVisible=false;
+  }
+  let n=0;
+  const place=(x:number,z:number,w:number,h:number,d:number,angle=0)=>{
+   const mesh=templates[n++%templates.length].clone('Motri basalt outcrop')!;mesh.isVisible=true;mesh.scaling.set(w,h,d);
+   this.add(mesh,n%2?'#707463':'#82826b',new Vector3(x,heightAt(x,z)-.06,z),new Vector3(0,angle,0));
+  };
+  for(const o of OBSTACLES)if(o.kind==='rock')place(o.x,o.z,o.w,o.h,o.d);
+  for(let i=0;i<18;i++){const a=i/18*Math.PI*2;place(-42+Math.cos(a)*4.65,-14+Math.sin(a)*3.55,.45+this.rnd()*.7,.2+this.rnd()*.3,.4+this.rnd()*.4,a);}
+  for(const [x,z] of [[-56,-27],[56,-28],[-56,31],[56,33]])place(x,z,5,2.5,4,.3);
+  this.finishBatches();templates.forEach(m=>m.dispose());loaded.meshes.filter(m=>!m.isDisposed()).forEach(m=>m.dispose());
+ }
  private finishBatches(){for(const list of this.batches.values()){if(!list.length)continue;const merged=Mesh.MergeMeshes(list,true,true,undefined,false,false);if(merged){merged.isPickable=false;merged.receiveShadows=true;merged.freezeWorldMatrix();this.shadows.addShadowCaster(merged);}}this.batches.clear();}
- update(time:number){for(let i=0;i<this.animatedFlags.length;i++){const f=this.animatedFlags[i];f.rotation.y=Math.sin(time*2.5+i)*.075;f.scaling.x=1+Math.sin(time*3+i)*.06;}}
+ update(time:number){for(let i=0;i<this.animatedFlags.length;i++){const f=this.animatedFlags[i];f.rotation.y=Math.sin(time*2.5+i)*.075;f.scaling.x=1+Math.sin(time*3+i)*.06;}for(let i=0;i<this.water.length;i++)(this.water[i] as Mesh&{alpha:number}).alpha=.15+Math.sin(time*1.2+i*2)*.1;}
  setPoint(id:number,owner:number,progress:number,contested:boolean){const hex=contested?'#efc272':owner===0?PALETTE.teal:owner===1?PALETTE.copper:'#d4c094';this.points[id].material=this.mat(hex,true);this.flags[id].material=this.mat(owner===0?'#367f76':owner===1?'#9b4d35':'#9d9179');this.flags[id].material!.backFaceCulling=false;this.flags[id].position.y=heightAt(POINTS[id].x,POINTS[id].z)+3.3+progress*1.6;}
  freezeShadows(){const map=this.shadows.getShadowMap();if(map)map.refreshRate=0;}
 }

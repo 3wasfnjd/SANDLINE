@@ -2,6 +2,8 @@
 
 A complete, single-map, player-versus-AI tactical battle for the browser. Command the fictional **Oasis Guard / حرس الواحة** against the **Copper Legion / الفيلق النحاسي** in Wadi al-Sidr. No account, base construction, store, or backend service is required.
 
+Source repository: https://github.com/3wasfnjd/SANDLINE. The initial playable version is preserved in commit `e964896502479f2ca592ceab34705d7af6d04d80`, before the Motri environment update.
+
 ## Run and build
 
 Requires Node.js 22+ and npm.
@@ -19,6 +21,7 @@ npm run assets
 npm run typecheck
 npm run test:simulation
 node --import tsx tests/assets.ts
+node --import tsx tests/imported-geometry.ts
 node --import tsx tests/benchmark.ts
 ```
 
@@ -65,7 +68,7 @@ Directional cover, elevation, movement accuracy, suppression, reloads, and flank
 | `tests/` | Full-match simulation tests, asset validation, CPU benchmarks and responsive preview frames |
 | `docs/` | Architecture, performance decisions, validation evidence and limitations |
 
-See [architecture](docs/architecture.md), [asset pipeline](docs/assets.md), and [validation](docs/validation.md). All game models, environment geometry, interface symbols and synthesized sounds were authored for this project. Cairo is bundled under its SIL Open Font License; dependency licenses remain with their respective authors.
+See [architecture](docs/architecture.md), [asset pipeline](docs/assets.md), [environment update](docs/environment-upgrade.md), and [validation](docs/validation.md). Units, buildings, vegetation, interface symbols and synthesized sounds were authored for this project. Three basalt meshes and one paving texture are adapted from Motri / Bruno Simon's MIT-licensed assets, with attribution in `docs/licenses/Motri-MIT.txt`. Cairo is bundled under its SIL Open Font License; dependency licenses remain with their respective authors.
 
 ## Scope
 

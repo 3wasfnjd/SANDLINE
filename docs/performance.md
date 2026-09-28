@@ -17,7 +17,9 @@ The 500-combatant test is explicitly experimental. Raising population is not a g
 - High pixel density is capped at 1.5. Sustained frame times above 37 ms reduce render scale and visual effects in stages. This changes presentation only. The system avoids repeated up/down quality oscillation.
 - Initial content is the only map, unit GLB, local font subsets and generated essential effects. Audio buffers are synthesized on the start interaction. Babylon loads shader/material chunks as needed; there are no large secondary asset sets to preload.
 
-The main JavaScript bundle after import pruning is approximately 1.82 MB raw / 455 KB gzip at the measured build. Shader/material chunks load separately. The authored GLB is 234,152 bytes. These are build byte counts, not a measured time-to-interactive over cellular networks.
+The main JavaScript bundle after import pruning was approximately 1.82 MB raw / 455 KB gzip at the baseline build. Shader/material chunks load separately. The current corrected unit GLB is 236,268 bytes; the Motri rock/paving assets add 64,473 bytes before HTTP compression. These are asset/build byte counts, not a measured time-to-interactive over cellular networks.
+
+The environment update adds one shared grass mesh (at most 900 four-blade tufts), one cloud-shadow layer and one reusable buffer for at most 260 rain lines. Grass sway runs at 15 Hz on GPU renderers. Rain counts follow weather intensity and adaptive quality; there is no per-drop physics. A short 60-combatant compatibility-renderer sample during visible rain showed 31 FPS after 36 simulated seconds, with 651 shots. This is an exploratory remote Chrome sample, not a phone or controlled before/after benchmark.
 
 ## Benchmarks
 
