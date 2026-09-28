@@ -124,7 +124,7 @@ export class World {
   for(let j=0;j<3;j++){const points=[];for(let i=0;i<=40;i++){const a=i/40*Math.PI*2,r=1+j*.85,x=-42+Math.cos(a)*r,z=-14+Math.sin(a)*r*.65;points.push(new Vector3(x,heightAt(x,z)+.09,z));}const ripple=MeshBuilder.CreateLines('spring ripple',{points},this.scene);ripple.color=Color3.FromHexString('#94c0ad');ripple.alpha=.24;ripple.isPickable=false;this.water.push(ripple);}
   // Small paving patches reuse Motri's actual stone atlas, not its driving map.
   const paving=new StandardMaterial('Motri stone paving',this.scene);paving.diffuseColor=Color3.FromHexString('#cfb691');paving.specularColor=Color3.Black();
-  const slabs=new Texture('/assets/motri-slabs.png',this.scene);slabs.uScale=2;slabs.vScale=1.5;paving.diffuseTexture=slabs;
+  const slabs=new Texture(`${import.meta.env.BASE_URL}assets/motri-slabs.png`,this.scene);slabs.uScale=2;slabs.vScale=1.5;paving.diffuseTexture=slabs;
   for(const [x,z,w,d] of [[-31,-3,5,4],[-32,7,4,3],[4,21,4,3]]){
    const tile=MeshBuilder.CreateGround('village paving',{width:w,height:d,subdivisions:5},this.scene);const v=tile.getVerticesData(VertexBuffer.PositionKind)!;
    for(let i=0;i<v.length;i+=3)v[i+1]=heightAt(v[i]+x,v[i+2]+z)+.055;tile.setVerticesData(VertexBuffer.PositionKind,v);tile.position.set(x,0,z);tile.material=paving;tile.receiveShadows=true;tile.isPickable=false;tile.freezeWorldMatrix();
@@ -138,7 +138,7 @@ export class World {
   }
  }
  async loadScenery(){
-  const loaded=await SceneLoader.ImportMeshAsync('','/assets/','motri-basalt.glb',this.scene);
+  const loaded=await SceneLoader.ImportMeshAsync('',`${import.meta.env.BASE_URL}assets/`,'motri-basalt.glb',this.scene);
   const templates=loaded.meshes.filter((m):m is Mesh=>m instanceof Mesh&&m.getTotalVertices()>0);
   if(templates.length!==3)throw new Error('Incomplete Motri rock kit');
   for(const mesh of templates){

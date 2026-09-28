@@ -20,7 +20,7 @@ export class UnitRenderer{
  private staticPalette:StandardMaterial;private lod=0;
  constructor(readonly scene:Scene){this.staticPalette=new StandardMaterial('unit vertex palette',scene);this.staticPalette.diffuseColor=Color3.White();this.staticPalette.specularColor=new Color3(.19,.18,.14);}
  async load(){
-  const loaded=await SceneLoader.ImportMeshAsync('','/assets/','sandline-units.glb',this.scene);
+  const loaded=await SceneLoader.ImportMeshAsync('',`${import.meta.env.BASE_URL}assets/`,'sandline-units.glb',this.scene);
   for(const node of loaded.meshes){if(!(node instanceof Mesh)||!node.getTotalVertices())continue;bakeImportedMesh(node);node.material=this.staticPalette;node.receiveShadows=false;this.batches.set(node.name,new Batch(node));}
   loaded.meshes.filter(m=>!m.getTotalVertices()).forEach(m=>m.dispose());
   for(const name of ['soldier_torso','soldier_head','soldier_upperarm','soldier_forearm','soldier_thigh','soldier_shin','weapon_rifle','weapon_mg','weapon_at','vehicle_body','vehicle_turret','vehicle_wheel'])if(!this.batches.has(name))throw new Error('Missing authored unit part: '+name);

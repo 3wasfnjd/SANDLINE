@@ -75,3 +75,7 @@ See [architecture](docs/architecture.md), [asset pipeline](docs/assets.md), [env
 This release is one reusable match with full start → command → capture/combat → result → restart flow. It deliberately excludes multiplayer, accounts, campaign maps, monetization, destructive terrain, heavy armor and artillery. Those systems are not partially exposed in the interface.
 
 Actual iPhone Safari and Android hardware performance has not been certified in the development environment. See the validation report before treating the 30 FPS mobile target or the 500-unit experiment as a measured device result.
+
+## GitHub Pages
+
+Play at https://3wasfnjd.github.io/SANDLINE/. The Pages workflow builds the TypeScript source with Vite and deploys only `dist/`. It selects the Actions build source to avoid publishing uncompiled TypeScript through Jekyll. All model and texture URLs use Vite's relative base, so the same build supports both `/SANDLINE/` and a root domain. A green legacy “pages build and deployment” run alone does not validate the game build.
